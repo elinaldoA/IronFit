@@ -194,6 +194,22 @@
 
         </main>
 
+        <!-- Painel de descanso entre séries -->
+        <div id="restPanel" class="rest-panel">
+            <div class="rest-ring-wrap">
+                <svg class="rest-ring" viewBox="0 0 100 100">
+                    <circle class="rest-ring__bg" cx="50" cy="50" r="44"/>
+                    <circle class="rest-ring__fg" id="restRingFg" cx="50" cy="50" r="44"/>
+                </svg>
+                <span class="rest-ring__num" id="restCount">0</span>
+            </div>
+            <div class="rest-info">
+                <div class="rest-info__label">Descansando</div>
+                <div class="rest-info__name" id="restLabel">–</div>
+                <button class="btn btn--ghost btn--sm" id="restSkip">Pular ↓</button>
+            </div>
+        </div>
+
         <!-- Navegação inferior -->
         <nav class="bottom-nav">
             <button class="nav-item active" data-page="treino">
