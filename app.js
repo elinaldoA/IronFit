@@ -963,10 +963,36 @@ function fmtDate(dateStr) {
    SERVICE WORKER
 ============================================================ */
 function registerSW() {
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('sw-novo.js')
-            .catch(err => console.warn('SW não registrado:', err));
-    }
+    if (!('serviceWorker' in navigator)) return;
+
+    navigator.serviceWorker.register('sw-novo.js').then(reg => {
+        reg.addEventListener('updatefound', () => {
+            const newSW = reg.installing;
+            newSW.addEventListener('statechange', () => {
+                if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
+                    showUpdateBanner(newSW);
+                }
+            });
+        });
+    }).catch(err => console.warn('SW não registrado:', err));
+
+    // Recarrega automaticamente quando o novo SW assume o controle
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!refreshing) { refreshing = true; location.reload(); }
+    });
+}
+
+function showUpdateBanner(newSW) {
+    const banner = document.createElement('div');
+    banner.className = 'update-banner';
+    banner.innerHTML =
+        '<span>Nova versão disponível</span>' +
+        '<button class="btn btn--primary btn--sm" id="updateBtn">Atualizar</button>';
+    document.body.appendChild(banner);
+    document.getElementById('updateBtn').addEventListener('click', () => {
+        newSW.postMessage({ type: 'SKIP_WAITING' });
+    });
 }
 
 /* ============================================================

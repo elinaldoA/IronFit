@@ -12,12 +12,14 @@ const urlsToCache = [
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then(cache => {
-        console.log('✅ Cache do IronFit aberto');
-        return cache.addAll(urlsToCache);
-      })
-      .then(() => self.skipWaiting())
+      .then(cache => cache.addAll(urlsToCache))
   );
+});
+
+self.addEventListener('message', event => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
 self.addEventListener('activate', event => {
