@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>🔥 Meu Plano 92kg</title>
+    <!-- Link para o Manifest PWA -->
+    <link rel="manifest" href="manifest.json">
+    <!-- Tema para a barra de status do Android -->
+    <meta name="theme-color" content="#0e0e12">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Roboto, system-ui, sans-serif;
+        }
+
+        body {
+            background-color: #0e0e12;
+            color: #e4e4e7;
+            padding: 16px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .container {
+            max-width: 900px;
+            width: 100%;
+            background: #18181b;
+            border-radius: 32px;
+            padding: 24px 20px 40px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.7);
+            border: 1px solid #2a2a2e;
+        }
+
+        /* HEADER */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 28px;
+            border-bottom: 1px solid #2a2a2e;
+            padding-bottom: 16px;
+        }
+        .header h1 {
+            font-size: 1.8rem;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            background: linear-gradient(135deg, #f97316, #fb923c);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .header .badge {
+            background: #27272a;
+            padding: 6px 14px;
+            border-radius: 40px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #a1a1aa;
+            border: 1px solid #3f3f46;
+        }
+        .header .badge strong {
+            color: #f97316;
+            font-weight: 700;
+        }
+
+        /* TABS */
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 28px;
+            background: #27272a;
+            padding: 6px;
+            border-radius: 40px;
+        }
+        .tab-btn {
+            flex: 1;
+            padding: 10px 0;
+            border: none;
+            background: transparent;
+            color: #a1a1aa;
+            font-weight: 700;
+            font-size: 0.95rem;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .tab-btn.active {
+            background: #f97316;
+            color: #09090b;
+            box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
+        }
+        .tab-btn:hover:not(.active) {
+            color: #e4e4e7;
+        }
+
+        .tab-content {
+            display: none;
+            animation: fadeUp 0.3s ease;
+        }
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeUp {
+            0% { opacity: 0; transform: translateY(10px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+
+        /* DIETA - Resumo */
+        .macro-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 10px;
+            background: #1c1c21;
+            padding: 16px;
+            border-radius: 20px;
+            margin-bottom: 28px;
+            border: 1px solid #2a2a2e;
+        }
+        .macro-item {
+            text-align: center;
+        }
+        .macro-item .value {
+            display: block;
+            font-size: 1.4rem;
+            font-weight: 800;
+            color: #f97316;
+        }
+        .macro-item .label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            color: #71717a;
+            letter-spacing: 0.5px;
+        }
+
+        /* TIMELINE DIETA */
+        .timeline {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .meal-card {
+            display: flex;
+            gap: 16px;
+            background: #1c1c21;
+            border-radius: 20px;
+            padding: 16px 18px;
+            border-left: 5px solid #f97316;
+            align-items: flex-start;
+            border: 1px solid #2a2a2e;
+            border-left-width: 5px;
+        }
+        .meal-time {
+            min-width: 60px;
+            font-weight: 700;
+            color: #f97316;
+            font-size: 0.9rem;
+            padding-top: 2px;
+        }
+        .meal-content {
+            flex: 1;
+        }
+        .meal-name {
+            font-weight: 700;
+            font-size: 1rem;
+            color: #e4e4e7;
+            margin-bottom: 4px;
+        }
+        .meal-desc {
+            font-size: 0.9rem;
+            color: #a1a1aa;
+            line-height: 1.5;
+        }
+        .meal-desc strong {
+            color: #fbbf24;
+        }
+        .meal-icon {
+            font-size: 1.5rem;
+            line-height: 1;
+        }
+        .water-highlight {
+            background: #1e293b;
+            border-left-color: #38bdf8;
+            margin-top: 8px;
+        }
+        .water-highlight .meal-time {
+            color: #38bdf8;
+        }
+
+        /* TREINO - ACCORDION */
+        .day-accordion {
+            background: #1c1c21;
+            border-radius: 16px;
+            margin-bottom: 12px;
+            border: 1px solid #2a2a2e;
+            overflow: hidden;
+        }
+        .day-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px 18px;
+            cursor: pointer;
+            background: #1c1c21;
+            transition: 0.15s;
+            user-select: none;
+        }
+        .day-header:hover {
+            background: #24242b;
+        }
+        .day-header .day-name {
+            font-weight: 700;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .day-header .day-name .check-indicator {
+            color: #4ade80;
+            font-size: 1.2rem;
+        }
+        .day-header .day-meta {
+            font-size: 0.8rem;
+            color: #71717a;
+        }
+        .day-body {
+            padding: 0 18px 18px;
+            display: none;
+            border-top: 1px solid #2a2a2e;
+        }
+        .day-body.open {
+            display: block;
+        }
+
+        .exercise-row {
+            display: grid;
+            grid-template-columns: 1fr 0.6fr 0.6fr 0.7fr 1.2fr;
+            gap: 6px;
+            padding: 8px 0;
+            border-bottom: 1px solid #26262b;
+            font-size: 0.8rem;
+            align-items: center;
+        }
+        .exercise-row.header-row {
+            color: #71717a;
+            font-weight: 600;
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            border-bottom: 2px solid #3f3f46;
+        }
+        .exercise-row .ex-name {
+            font-weight: 600;
+            color: #e4e4e7;
+        }
+        .exercise-row .ex-detail {
+            color: #a1a1aa;
+        }
+        .exercise-row .carga-input {
+            width: 50px;
+            background: #0e0e12;
+            border: 1px solid #3f3f46;
+            border-radius: 6px;
+            color: #e4e4e7;
+            padding: 4px 2px;
+            text-align: center;
+            font-size: 0.75rem;
+        }
+        .exercise-row .carga-input:focus {
+            outline: 2px solid #f97316;
+            border-color: transparent;
+        }
+        .sub-section {
+            font-weight: 700;
+            color: #fbbf24;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 12px 0 4px;
+            border-bottom: 1px dashed #3f3f46;
+            margin-top: 6px;
+        }
+        .checkbox-treino {
+            width: 18px;
+            height: 18px;
+            accent-color: #f97316;
+            cursor: pointer;
+            margin-right: 8px;
+        }
+        .flex-row {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .rest-indicator {
+            background: #27272a;
+            padding: 0px 8px;
+            border-radius: 20px;
+            font-size: 0.65rem;
+            color: #a1a1aa;
+        }
+
+        /* RESPONSIVE */
+        @media (max-width: 600px) {
+            .exercise-row {
+                grid-template-columns: 1fr;
+                gap: 2px;
+                padding: 10px 0;
+                border-bottom: 1px solid #26262b;
+            }
+            .exercise-row.header-row {
+                display: none;
+            }
+            .exercise-row .ex-detail {
+                font-size: 0.7rem;
+                color: #a1a1aa;
+            }
+            .exercise-row .ex-detail span {
+                display: inline-block;
+                background: #27272a;
+                padding: 0px 8px;
+                border-radius: 12px;
+                margin-right: 4px;
+            }
+            .exercise-row .carga-input {
+                width: 60px;
+                margin-top: 4px;
+            }
+            .day-header {
+                flex-wrap: wrap;
+            }
+            .meal-card {
+                flex-wrap: wrap;
+            }
+            .meal-time {
+                min-width: 50px;
+            }
+        }
+
+        .footer-note {
+            margin-top: 30px;
+            text-align: center;
+            font-size: 0.7rem;
+            color: #52525b;
+            border-top: 1px solid #27272a;
+            padding-top: 20px;
+        }
+        .footer-note strong {
+            color: #f97316;
+        }
+
+        .btn-reset {
+            background: #3f3f46;
+            border: none;
+            color: #e4e4e7;
+            padding: 6px 16px;
+            border-radius: 40px;
+            font-size: 0.7rem;
+            cursor: pointer;
+            transition: 0.2s;
+            margin-top: 4px;
+        }
+        .btn-reset:hover {
+            background: #52525b;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <!-- HEADER -->
+    <div class="header">
+        <h1>⚡ MEU PLANO</h1>
+        <div class="badge">
+            <strong>92kg</strong> · 1,70m · ⏰ 20h
+        </div>
+    </div>
+
+    <!-- TABS -->
+    <div class="tabs">
+        <button class="tab-btn active" data-tab="tab-treino">🏋️ TREINO</button>
+        <button class="tab-btn" data-tab="tab-dieta">🥩 DIETA</button>
+    </div>
+
+    <!-- TREINO TAB -->
+    <div id="tab-treino" class="tab-content active">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:8px;">
+            <span style="color:#a1a1aa; font-size:0.85rem;">✅ Marque os treinos concluídos (salva automático)</span>
+            <button class="btn-reset" id="resetTreinos">Limpar todos os checks</button>
+        </div>
+        <div id="treinoContainer"></div>
+    </div>
+
+    <!-- DIETA TAB -->
+    <div id="tab-dieta" class="tab-content">
+        <div class="macro-summary">
+            <div class="macro-item"><span class="value">2600</span><span class="label">Kcal</span></div>
+            <div class="macro-item"><span class="value">200g</span><span class="label">Proteína</span></div>
+            <div class="macro-item"><span class="value">290g</span><span class="label">Carboidrato</span></div>
+            <div class="macro-item"><span class="value">70g</span><span class="label">Gordura</span></div>
+            <div class="macro-item"><span class="value" style="color:#38bdf8;">3.5L</span><span class="label">Água</span></div>
+        </div>
+        <div id="dietaContainer" class="timeline"></div>
+    </div>
+
+    <div class="footer-note">
+        💡 <strong>Progressão:</strong> Aumente cargas semanalmente. <strong>Deload</strong> na semana 6. <br>
+        Dados salvos no seu navegador.
+    </div>
+</div>
+
+<script>
+    // ============================================================
+    // 1. DADOS DO TREINO (baseado no CSV)
+    // ============================================================
+    const treinoData = [{
+        dia: "Segunda",
+        foco: "Peito / Ombro / Tríceps",
+        exercicios: [
+            { nome: "Supino Reto com Barra", series: "4", reps: "8-10", descanso: "90s", tecnica: "Cadência 2-0-2" },
+            { nome: "Supino Inclinado com Halteres", series: "3", reps: "10-12", descanso: "60s", tecnica: "Alongamento máximo" },
+            { nome: "Crucifixo Máquina", series: "3", reps: "12-15", descanso: "45s", tecnica: "Pico de contração" },
+            { nome: "Desenvolvimento com Barra", series: "4", reps: "8-10", descanso: "90s", tecnica: "Lombar apoiada" },
+            { nome: "Elevação Lateral com Halteres", series: "4", reps: "12-15", descanso: "45s", tecnica: "Leve inclinação" },
+            { nome: "Tríceps Corda na Polia", series: "3", reps: "12-15", descanso: "45s", tecnica: "Full ROM" },
+            { nome: "Tríceps Testa com Barra W", series: "3", reps: "10-12", descanso: "60s", tecnica: "Cotovelos fixos" }
+        ],
+        pos: [
+            { nome: "🏃 Cardio - Esteira Inclinada", detalhe: "20min · 10% inclinação / 5km/h" },
+            { nome: "🔷 Abdômen - Abdominal Polia (Corda)", detalhe: "4x 12-15 reps · Pico contração" },
+            { nome: "🔷 Abdômen - Elevação Pernas Pendurado", detalhe: "3x Falha (max 20) · Máximo alongamento" },
+            { nome: "🔷 Abdômen - Prancha com Peso", detalhe: "3x 45s · Isometria com carga" }
+        ]
+    }, {
+        dia: "Terça",
+        foco: "Costas / Bíceps",
+        exercicios: [
+            { nome: "Puxada Aberta Frente", series: "4", reps: "8-10", descanso: "90s", tecnica: "Tronco inclinado" },
+            { nome: "Remada Curvada com Barra", series: "4", reps: "8-10", descanso: "90s", tecnica: "Escápula ativa" },
+            { nome: "Remada Unilateral com Halter", series: "3", reps: "10-12", descanso: "60s", tecnica: "Máximo alongamento" },
+            { nome: "Pulldown Neutro (Triângulo)", series: "3", reps: "10-12", descanso: "60s", tecnica: "Cotovelo guiado" },
+            { nome: "Face Pull", series: "4", reps: "15-20", descanso: "45s", tecnica: "ESSENCIAL postura" },
+            { nome: "Rosca Direta Barra W", series: "3", reps: "10-12", descanso: "60s", tecnica: "Sem balanço" },
+            { nome: "Rosca Martelo Alternada", series: "3", reps: "12-15", descanso: "45s", tecnica: "Supinação no pico" },
+            { nome: "Rosca Inversa com Barra", series: "2", reps: "12-15", descanso: "45s", tecnica: "Foco antebraço" }
+        ],
+        pos: [
+            { nome: "🏃 Cardio - Escada", detalhe: "20min · Moderado (130bpm)" },
+            { nome: "🔷 Abdômen - Abdominal Supra com Halter", detalhe: "3x 15-20 reps · Carga moderada" },
+            { nome: "🔷 Abdômen - Bicicleta no Solo", detalhe: "3x 20 cada perna · Movimento alternado" },
+            { nome: "🔷 Abdômen - Prancha Lateral com Elevação", detalhe: "3x 30s cada lado · Estabilidade dinâmica" }
+        ]
+    }, {
+        dia: "Quarta",
+        foco: "Pernas / Quadríceps",
+        exercicios: [
+            { nome: "Agachamento Livre", series: "4", reps: "6-8", descanso: "2min", tecnica: "Profundo (paralelo)" },
+            { nome: "Leg Press 45°", series: "4", reps: "10-12", descanso: "75s", tecnica: "Amplitude máxima" },
+            { nome: "Cadeira Extensora", series: "4", reps: "12-15", descanso: "45s", tecnica: "Pausa 2s no pico" },
+            { nome: "Afundo Búlgaro", series: "3", reps: "10-12 (cada)", descanso: "60s", tecnica: "Pé elevado atrás" },
+            { nome: "Agachamento Sumô com Halter", series: "3", reps: "12-15", descanso: "45s", tecnica: "Foco adutores" },
+            { nome: "Panturrilha em Pé", series: "4", reps: "12-15", descanso: "45s", tecnica: "2s de estiramento" },
+            { nome: "Panturrilha Sentado", series: "3", reps: "15-20", descanso: "45s", tecnica: "Pico de contração" }
+        ],
+        pos: [
+            { nome: "🏃 Cardio - Caminhada Leve", detalhe: "10min · Resfriamento" },
+            { nome: "🔷 Abdômen - Crunch Invertido (banco)", detalhe: "4x 15 reps · Levanta quadril" },
+            { nome: "🔷 Abdômen - Russian Twist com Halter", detalhe: "3x 20 cada lado · Rotação tronco" },
+            { nome: "🔷 Abdômen - Prancha Frontal Estática", detalhe: "3x 60s · Isometria máxima" }
+        ]
+    }, {
+        dia: "Quinta",
+        foco: "Superiores / Força",
+        exercicios: [
+            { nome: "Supino Reto com Halteres", series: "4", reps: "6-8", descanso: "2min", tecnica: "Carga alta (força)" },
+            { nome: "Remada com Barra T", series: "4", reps: "8-10", descanso: "90s", tecnica: "Contração escapular" },
+            { nome: "Desenvolvimento Arnold", series: "3", reps: "8-10", descanso: "75s", tecnica: "Rotação completa" },
+            { nome: "Crucifixo Invertido", series: "3", reps: "12-15", descanso: "45s", tecnica: "Posterior ombro" },
+            { nome: "Rosca Scott", series: "3", reps: "10-12", descanso: "60s", tecnica: "Banco ajustado" },
+            { nome: "Tríceps Francês com Halter", series: "3", reps: "10-12", descanso: "60s", tecnica: "Cotovelo estabilizado" },
+            { nome: "Farmer's Walk", series: "3", reps: "30s", descanso: "60s", tecnica: "Grip + Core" }
+        ],
+        pos: [
+            { nome: "🏃 Cardio - Caminhada (6km/h)", detalhe: "25min · Moderado" },
+            { nome: "🔷 Abdômen - Abdominal na Máquina", detalhe: "4x 12-15 reps · Carga controlada" },
+            { nome: "🔷 Abdômen - Tesoura (Scissor Kicks)", detalhe: "3x 20 cada perna · Alonga ísquios" },
+            { nome: "🔷 Abdômen - Prancha com Braços Estendidos", detalhe: "3x 45s · Ativa peitoral e core" }
+        ]
+    }, {
+        dia: "Sexta",
+        foco: "Posterior / Glúteos",
+        exercicios: [
+            { nome: "Romeno com Barra", series: "4", reps: "8-10", descanso: "90s", tecnica: "Estiramento máximo" },
+            { nome: "Stiff com Halteres", series: "3", reps: "10-12", descanso: "60s", tecnica: "Joelhos levemente flexionados" },
+            { nome: "Cadeira Flexora (Deitado)", series: "4", reps: "12-15", descanso: "45s", tecnica: "Pausa no pico" },
+            { nome: "Mesa Flexora (Sentado)", series: "3", reps: "12-15", descanso: "45s", tecnica: "Negativa lenta" },
+            { nome: "Afundo Búlgaro (foco glúteo)", series: "3", reps: "10-12 (cada)", descanso: "60s", tecnica: "Tronco inclinado" },
+            { nome: "Elevação Pélvica", series: "3", reps: "15-20", descanso: "45s", tecnica: "Pausa 3s topo" },
+            { nome: "Panturrilha em Pé (carga)", series: "4", reps: "10-12", descanso: "45s", tecnica: "Ênfase potência" }
+        ],
+        pos: [
+            { nome: "🏃 Cardio - HIIT Esteira", detalhe: "15min · 1min corre / 2min caminha" },
+            { nome: "🔷 Abdômen - Roda (Ab Wheel)", detalhe: "4x 10-12 reps · Extensão total core" },
+            { nome: "🔷 Abdômen - Elevação Pernas Deitado (Toe Touch)", detalhe: "3x 15-20 reps · Toque os pés" },
+            { nome: "🔷 Abdômen - Prancha Lateral Estática", detalhe: "3x 45s cada lado · Estabilidade unilateral" }
+        ]
+    }, {
+        dia: "Sábado",
+        foco: "Cardio Leve / Recuperação",
+        exercicios: [
+            { nome: "Caminhada Rápida ou Bicicleta", series: "-", reps: "30-40min", descanso: "-", tecnica: "5-6 km/h / 130bpm" }
+        ],
+        pos: []
+    }, {
+        dia: "Domingo",
+        foco: "Descanso Total",
+        exercicios: [
+            { nome: "Sem treino", series: "-", reps: "-", descanso: "-", tecnica: "Recuperação ativa" }
+        ],
+        pos: []
+    }];
+
+    // ============================================================
+    // 2. DADOS DA DIETA (personalizada 2600 kcal)
+    // ============================================================
+    const dietaData = [
+        { horario: "07:30", nome: "☀️ Café da manhã", descricao: "4 ovos inteiros + 3 claras (mexidos) · 40g aveia · 1 banana · 1 col. chá de mel · Café preto" },
+        { horario: "10:30", nome: "🍏 Lanche da manhã", descricao: "1 scoop Whey (ou 180g iogurte grego) · 1 maçã · 25g amêndoas/castanhas" },
+        { horario: "13:00", nome: "🥗 Almoço", descricao: "220g frango grelhado/patinho · 250g arroz integral ou batata-doce · 200g brócolis · 1 col. sopa azeite" },
+        { horario: "17:30", nome: "⚡ PRÉ-TREINO (pesado)", descricao: "200g peito de peru/atum · 2 pães integrais · 1 batata-doce média (150g) · 1 banana · 500ml água" },
+        { horario: "19:30", nome: "☕ PRÉ-TREINO (leve)", descricao: "Café preto (sem açúcar) · 1 scoop Whey (opcional)" },
+        { horario: "20:00", nome: "🏋️ TREINO", descricao: "Beba 500ml a 1L de água durante o treino" },
+        { horario: "21:15", nome: "🍽️ PÓS-TREINO (Ceia/Jantar)", descricao: "200g peixe (salmão/tilápia) ou contra-filé · 250g arroz branco · Salada verde com azeite" },
+        { horario: "23:30", nome: "🥛 Ceia (opcional)", descricao: "Se bater fome: 2 ovos cozidos ou 1 scoop caseína/whey com água" },
+        { horario: "💧 ÁGUA", nome: "Hidratação obrigatória", descricao: "<strong>3,5 a 4 litros</strong> ao longo do dia (seu peso alto exige mais)", isWater: true }
+    ];
+
+    // ============================================================
+    // 3. FUNÇÕES DE RENDERIZAÇÃO
+    // ============================================================
+
+    // --- Treino ---
+    function renderTreino() {
+        const container = document.getElementById('treinoContainer');
+        container.innerHTML = '';
+
+        treinoData.forEach((day, idx) => {
+            const accordion = document.createElement('div');
+            accordion.className = 'day-accordion';
+
+            const header = document.createElement('div');
+            header.className = 'day-header';
+
+            const nameDiv = document.createElement('div');
+            nameDiv.className = 'day-name';
+
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.className = 'checkbox-treino';
+            checkbox.dataset.day = day.dia;
+            const saved = localStorage.getItem(`treino_${day.dia}`);
+            if (saved === 'true') checkbox.checked = true;
+
+            checkbox.addEventListener('change', (e) => {
+                localStorage.setItem(`treino_${day.dia}`, e.target.checked);
+                updateIndicator(day.dia, indicatorSpan);
+            });
+
+            const indicatorSpan = document.createElement('span');
+            indicatorSpan.className = 'check-indicator';
+            indicatorSpan.textContent = checkbox.checked ? '✅' : '⬜';
+            updateIndicator(day.dia, indicatorSpan);
+
+            function updateIndicator(dia, span) {
+                const isChecked = localStorage.getItem(`treino_${dia}`) === 'true';
+                span.textContent = isChecked ? '✅' : '⬜';
+            }
+
+            const nameText = document.createElement('span');
+            nameText.textContent = `${day.dia} · ${day.foco}`;
+
+            nameDiv.appendChild(checkbox);
+            nameDiv.appendChild(indicatorSpan);
+            nameDiv.appendChild(nameText);
+
+            const meta = document.createElement('span');
+            meta.className = 'day-meta';
+            meta.textContent = `${day.exercicios.length} exercícios`;
+
+            header.appendChild(nameDiv);
+            header.appendChild(meta);
+
+            const body = document.createElement('div');
+            body.className = 'day-body';
+
+            const headerRow = document.createElement('div');
+            headerRow.className = 'exercise-row header-row';
+            headerRow.innerHTML = `
+                <span>Exercício</span>
+                <span>Séries</span>
+                <span>Reps</span>
+                <span>Descanso</span>
+                <span>Carga (Sem1-4)</span>
+            `;
+            body.appendChild(headerRow);
+
+            day.exercicios.forEach(ex => {
+                const row = document.createElement('div');
+                row.className = 'exercise-row';
+                row.innerHTML = `
+                    <span class="ex-name">${ex.nome}</span>
+                    <span class="ex-detail"><span>${ex.series}</span></span>
+                    <span class="ex-detail"><span>${ex.reps}</span></span>
+                    <span class="ex-detail"><span>${ex.descanso}</span></span>
+                    <span class="ex-detail">
+                        <input class="carga-input" type="text" placeholder="kg" data-day="${day.dia}" data-ex="${ex.nome}">
+                    </span>
+                `;
+                const input = row.querySelector('.carga-input');
+                const savedCarga = localStorage.getItem(`carga_${day.dia}_${ex.nome}`);
+                if (savedCarga) input.value = savedCarga;
+                input.addEventListener('change', (e) => {
+                    localStorage.setItem(`carga_${day.dia}_${ex.nome}`, e.target.value);
+                });
+                body.appendChild(row);
+            });
+
+            if (day.pos && day.pos.length > 0) {
+                const subTitle = document.createElement('div');
+                subTitle.className = 'sub-section';
+                subTitle.textContent = '🏁 Pós-treino (Cardio + Abdômen)';
+                body.appendChild(subTitle);
+
+                day.pos.forEach(p => {
+                    const row = document.createElement('div');
+                    row.className = 'exercise-row';
+                    row.innerHTML = `
+                        <span class="ex-name">${p.nome}</span>
+                        <span class="ex-detail" style="grid-column: span 4;">${p.detalhe}</span>
+                    `;
+                    body.appendChild(row);
+                });
+            }
+
+            let isOpen = false;
+            header.addEventListener('click', (e) => {
+                if (e.target.type === 'checkbox') return;
+                isOpen = !isOpen;
+                body.classList.toggle('open', isOpen);
+            });
+
+            accordion.appendChild(header);
+            accordion.appendChild(body);
+            container.appendChild(accordion);
+        });
+    }
+
+    // --- Dieta ---
+    function renderDieta() {
+        const container = document.getElementById('dietaContainer');
+        container.innerHTML = '';
+
+        dietaData.forEach(meal => {
+            const card = document.createElement('div');
+            card.className = 'meal-card';
+            if (meal.isWater) card.classList.add('water-highlight');
+
+            const timeDiv = document.createElement('div');
+            timeDiv.className = 'meal-time';
+            timeDiv.textContent = meal.horario;
+
+            const content = document.createElement('div');
+            content.className = 'meal-content';
+
+            const nameDiv = document.createElement('div');
+            nameDiv.className = 'meal-name';
+            nameDiv.textContent = meal.nome;
+
+            const descDiv = document.createElement('div');
+            descDiv.className = 'meal-desc';
+            descDiv.innerHTML = meal.descricao;
+
+            content.appendChild(nameDiv);
+            content.appendChild(descDiv);
+            card.appendChild(timeDiv);
+            card.appendChild(content);
+            container.appendChild(card);
+        });
+    }
+
+    // ============================================================
+    // 4. TABS E RESET
+    // ============================================================
+
+    function initTabs() {
+        const buttons = document.querySelectorAll('.tab-btn');
+        const contents = {
+            treino: document.getElementById('tab-treino'),
+            dieta: document.getElementById('tab-dieta')
+        };
+
+        buttons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                buttons.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+
+                const target = btn.dataset.tab;
+                Object.keys(contents).forEach(key => {
+                    contents[key].classList.toggle('active', key === target.replace('tab-', ''));
+                });
+            });
+        });
+    }
+
+    document.getElementById('resetTreinos').addEventListener('click', () => {
+        if (confirm('Limpar todos os checkboxes de treino e cargas salvas?')) {
+            const keys = Object.keys(localStorage);
+            keys.forEach(key => {
+                if (key.startsWith('treino_') || key.startsWith('carga_')) {
+                    localStorage.removeItem(key);
+                }
+            });
+            renderTreino();
+        }
+    });
+
+    // ============================================================
+    // 5. SERVICE WORKER - REGISTRO PWA
+    // ============================================================
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('sw.js')
+                .then(registration => {
+                    console.log('✅ Service Worker registrado com sucesso!', registration);
+                })
+                .catch(err => {
+                    console.error('❌ Falha ao registrar Service Worker:', err);
+                });
+        });
+    }
+
+    // ============================================================
+    // 6. INIT
+    // ============================================================
+
+    renderTreino();
+    renderDieta();
+    initTabs();
+
+    setTimeout(() => {
+        const firstBody = document.querySelector('.day-body');
+        if (firstBody) firstBody.classList.add('open');
+    }, 100);
+
+    console.log('🔥 Plano 92kg PWA carregado! Instale na tela inicial.');
+</script>
+</body>
+</html>
