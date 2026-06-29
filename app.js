@@ -154,21 +154,21 @@ async function checkSession() {
 }
 
 function showAuthPanel() {
-    document.getElementById('authSection').style.display = 'flex';
-    document.getElementById('weekProgress').style.display = 'none';
+    document.getElementById('authScreen').style.display = 'flex';
+    document.getElementById('appScreen').style.display  = 'none';
 }
 
 function hideAuthPanel() {
-    document.getElementById('authSection').style.display = 'none';
-    document.getElementById('weekProgress').style.display = 'flex';
+    document.getElementById('authScreen').style.display = 'none';
+    document.getElementById('appScreen').style.display  = 'flex';
 }
 
 function renderUserChip() {
     document.getElementById('headerAuth').innerHTML = `
         <div class="user-chip">
+            <span class="sync-dot sync-dot--ok" id="syncBadge" title="Sincronizado"></span>
             <span class="user-chip__email">${state.user.email}</span>
-            <span class="sync-badge sync-badge--ok" id="syncBadge">✓ Sincronizado</span>
-            <button class="btn btn--ghost btn--sm btn--icon" id="syncBtn" title="Sincronizar">↻</button>
+            <button class="btn btn--ghost btn--sm" id="syncBtn" title="Sincronizar">↻</button>
             <button class="btn btn--ghost btn--sm" id="logoutBtn">Sair</button>
         </div>
     `;
@@ -179,14 +179,8 @@ function renderUserChip() {
 function setSyncBadge(status) {
     const el = document.getElementById('syncBadge');
     if (!el) return;
-    const map = {
-        ok:      ['✓ Sincronizado',   'sync-badge--ok'],
-        loading: ['⏳ Sincronizando…', 'sync-badge--loading'],
-        error:   ['⚠️ Erro de sync',   'sync-badge--error'],
-    };
-    const [text, cls] = map[status];
-    el.textContent = text;
-    el.className = `sync-badge ${cls}`;
+    el.className = `sync-dot sync-dot--${status}`;
+    el.title = { ok: 'Sincronizado', loading: 'Sincronizando…', error: 'Erro de sync' }[status] || '';
 }
 
 async function onLoggedIn() {
@@ -223,10 +217,24 @@ async function doSignup() {
     if (!email || !pwd) { setAuthMsg('Preencha e-mail e senha.', 'error'); return; }
     if (pwd.length < 6) { setAuthMsg('Senha: mínimo 6 caracteres.', 'error'); return; }
 
-    const { error } = await db.auth.signUp({ email, password: pwd });
+    const btn = document.getElementById('signupBtn');
+    btn.disabled = true;
+    btn.textContent = 'Criando…';
+
+    const { data, error } = await db.auth.signUp({ email, password: pwd });
+
+    btn.disabled = false;
+    btn.textContent = 'Criar conta';
+
     if (error) { setAuthMsg(error.message, 'error'); return; }
 
-    setAuthMsg('Conta criada! Verifique seu e-mail.', 'success');
+    if (data.session) {
+        state.user = data.user;
+        setAuthMsg('', '');
+        onLoggedIn();
+    } else {
+        setAuthMsg('Conta criada! Verifique seu e-mail para ativar.', 'success');
+    }
 }
 
 async function doLogout() {
@@ -241,7 +249,7 @@ async function doLogout() {
 function setAuthMsg(text, type) {
     const el = document.getElementById('authMessage');
     el.textContent = text;
-    el.className = `auth__message${type ? ' auth__message--' + type : ''}`;
+    el.className = `auth-form__msg${type ? ' auth-form__msg--' + type : ''}`;
 }
 
 /* ============================================================
@@ -516,23 +524,22 @@ function renderDieta() {
 }
 
 /* ============================================================
-   TABS
+   NAVEGAÇÃO INFERIOR
 ============================================================ */
 function initTabs() {
-    const btns   = document.querySelectorAll('.tab-btn');
-    const panels = {
-        treino: document.getElementById('tab-treino'),
-        dieta:  document.getElementById('tab-dieta'),
+    const items = document.querySelectorAll('.nav-item');
+    const pages = {
+        treino: document.getElementById('page-treino'),
+        dieta:  document.getElementById('page-dieta'),
     };
 
-    btns.forEach(btn => {
-        btn.addEventListener('click', () => {
-            btns.forEach(b => { b.classList.remove('active'); b.setAttribute('aria-selected', 'false'); });
-            btn.classList.add('active');
-            btn.setAttribute('aria-selected', 'true');
-            const target = btn.dataset.tab;
-            Object.entries(panels).forEach(([key, panel]) => {
-                panel.classList.toggle('active', key === target);
+    items.forEach(item => {
+        item.addEventListener('click', () => {
+            items.forEach(i => i.classList.remove('active'));
+            item.classList.add('active');
+            const target = item.dataset.page;
+            Object.entries(pages).forEach(([key, page]) => {
+                page.classList.toggle('active', key === target);
             });
         });
     });
