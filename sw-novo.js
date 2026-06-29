@@ -1,8 +1,10 @@
-const CACHE_NAME = 'meu-plano-v5';
+const CACHE_NAME = 'meu-plano-v6';
 const urlsToCache = [
   './',
   './index.html',
-  './manifest.json'
+  './manifest.json',
+  './icon-192.png',
+  './icon-512.png'
 ];
 
 self.addEventListener('install', event => {
