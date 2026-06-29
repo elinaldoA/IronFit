@@ -1,7 +1,9 @@
-const CACHE_NAME = 'ironfit-v1';
+const CACHE_NAME = 'ironfit-v2';
 const urlsToCache = [
   './',
   './index.html',
+  './app.js',
+  './style.css',
   './manifest.json',
   './icon-192.png',
   './icon-512.png'
