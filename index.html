@@ -735,17 +735,17 @@
     });
 
     // ============================================================
-    // 5. SERVICE WORKER - REGISTRO PWA (CORRIGIDO)
+    // 5. SERVICE WORKER - USANDO O NOVO ARQUIVO
     // ============================================================
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-            // Usa caminho relativo para funcionar em subdiretórios
-            navigator.serviceWorker.register('./sw.js')
+            // REGISTRA O ARQUIVO NOVO (sw-novo.js)
+            navigator.serviceWorker.register('./sw-novo.js')
                 .then(registration => {
-                    console.log('✅ Service Worker registrado com sucesso!', registration);
+                    console.log('✅ NOVO Service Worker registrado!', registration);
                 })
                 .catch(err => {
-                    console.error('❌ Falha ao registrar Service Worker:', err);
+                    console.error('❌ Falha ao registrar:', err);
                 });
         });
     }
