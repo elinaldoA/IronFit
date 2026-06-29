@@ -35,6 +35,23 @@
   --t: 160ms ease;
 }
 
+/* Light theme overrides */
+[data-theme="light"] {
+  --bg:           #f4f4f5;
+  --surface:      #ffffff;
+  --surface-2:    #f1f1f4;
+  --surface-3:    #e4e4e7;
+  --border:       #d4d4d8;
+  --border-2:     #a1a1aa;
+  --text:         #18181b;
+  --text-muted:   #52525b;
+  --text-dim:     #71717a;
+  --primary-glow: rgba(249,115,22,.12);
+  --shadow-sm: 0 1px 4px rgba(0,0,0,.10);
+  --shadow-md: 0 4px 16px rgba(0,0,0,.12);
+  --shadow-lg: 0 12px 40px rgba(0,0,0,.18);
+}
+
 /* ============================================================
    RESET
 ============================================================ */
@@ -327,6 +344,24 @@ button, input { font-family: inherit; }
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* ── Theme toggle ── */
+.theme-toggle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--border-2);
+  background: var(--surface-3);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background var(--t), color var(--t), border-color var(--t);
+  flex-shrink: 0;
+}
+.theme-toggle:hover { background: var(--border-2); color: var(--text); }
+.theme-toggle svg { width: 16px; height: 16px; pointer-events: none; }
 
 .sync-dot {
   width: 7px;
