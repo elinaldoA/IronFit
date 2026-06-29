@@ -367,106 +367,6 @@ function updateWeekProgress() {
 }
 
 /* ============================================================
-   REST TIMER
-============================================================ */
-const REST_CIRC = 276.5; // 2π × 44
-let _restId      = null;
-let _restUnlock  = null;
-
-function parseDescanso(str) {
-    if (!str || str === '-') return 0;
-    const m = str.match(/(\d+)\s*min/i);
-    if (m) return parseInt(m[1]) * 60;
-    const s = str.match(/(\d+)/);
-    return s ? parseInt(s[1]) : 0;
-}
-
-function startRestTimer(seconds, exNome, onUnlock) {
-    if (_restId) clearInterval(_restId);
-    _restUnlock = onUnlock;
-
-    const panel  = document.getElementById('restPanel');
-    const countEl = document.getElementById('restCount');
-    const labelEl = document.getElementById('restLabel');
-    const ringFg  = document.getElementById('restRingFg');
-
-    let remaining = seconds;
-    const total   = seconds;
-
-    labelEl.textContent = exNome;
-    countEl.textContent = remaining;
-    ringFg.style.transition = 'none';
-    ringFg.style.strokeDashoffset = '0';
-    panel.classList.add('active');
-
-    // give browser one frame to apply 'none' before restoring transition
-    requestAnimationFrame(() => {
-        ringFg.style.transition = 'stroke-dashoffset 1s linear';
-    });
-
-    _restId = setInterval(() => {
-        remaining--;
-        countEl.textContent = remaining;
-        ringFg.style.strokeDashoffset = REST_CIRC * (1 - remaining / total);
-        if (remaining <= 0) {
-            clearInterval(_restId);
-            _restId = null;
-            panel.classList.remove('active');
-            if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
-            toast('Descansou! Próxima série liberada');
-            _restUnlock?.();
-            _restUnlock = null;
-        }
-    }, 1000);
-}
-
-function initRestPanel() {
-    document.getElementById('restSkip').addEventListener('click', () => {
-        if (_restId) { clearInterval(_restId); _restId = null; }
-        document.getElementById('restPanel').classList.remove('active');
-        _restUnlock?.();
-        _restUnlock = null;
-    });
-}
-
-function renderSetButtons(ex, body) {
-    const n = parseInt(ex.series);
-    if (!n || isNaN(n)) return;
-
-    const secs = parseDescanso(ex.descanso);
-    const wrap = document.createElement('div');
-    wrap.className = 'ex-sets';
-
-    const btns = [];
-    for (let i = 0; i < n; i++) {
-        const btn = document.createElement('button');
-        btn.className = 'set-btn';
-        btn.textContent = i + 1;
-        btn.disabled = i > 0;
-
-        btn.addEventListener('click', () => {
-            btn.classList.add('set-btn--done');
-            btn.disabled = true;
-            const next = btns[i + 1];
-            if (!next) return;
-            if (secs > 0) {
-                startRestTimer(secs, ex.nome, () => {
-                    next.disabled = false;
-                    next.classList.add('set-btn--ready');
-                });
-            } else {
-                next.disabled = false;
-                next.classList.add('set-btn--ready');
-            }
-        });
-
-        btns.push(btn);
-        wrap.appendChild(btn);
-    }
-    body.appendChild(wrap);
-}
-
-/* ============================================================
    RENDER — Treino
 ============================================================ */
 function renderTreino() {
@@ -563,7 +463,6 @@ function renderTreino() {
             });
 
             body.appendChild(row);
-            if (isToday) renderSetButtons(ex, body);
         });
 
         // Post-workout
@@ -1152,7 +1051,6 @@ function init() {
     initAuthEvents();
     initProfile();
     initTheme();
-    initRestPanel();
     updateWeekProgress();
     checkSession();
     registerSW();
