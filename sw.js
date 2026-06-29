@@ -1,8 +1,8 @@
-const CACHE_NAME = 'meu-plano-v2';
+const CACHE_NAME = 'meu-plano-v3';
 const urlsToCache = [
-  '/',
-  '/index.html',
-  '/manifest.json'
+  './',                // ← caminho relativo
+  './index.html',
+  './manifest.json'
 ];
 
 // Instalação: faz o cache dos arquivos principais
@@ -33,16 +33,16 @@ self.addEventListener('activate', event => {
   );
 });
 
-// Intercepta requisições: busca no cache primeiro, depois na rede (estratégia Offline First)
+// Intercepta requisições: busca no cache primeiro
 self.addEventListener('fetch', event => {
   event.respondWith(
     caches.match(event.request)
       .then(response => {
         // Se achou no cache, retorna. Senão, busca na rede.
         return response || fetch(event.request).catch(() => {
-          // Fallback offline (opcional)
+          // Fallback offline: redireciona para o index.html
           if (event.request.mode === 'navigate') {
-            return caches.match('/index.html');
+            return caches.match('./index.html');
           }
         });
       })
