@@ -8,14 +8,38 @@
     <meta name="theme-color" content="#0e0e12">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    
+    <!-- Supabase JS Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Roboto, system-ui, sans-serif; }
         body { background-color: #0e0e12; color: #e4e4e7; padding: 16px; min-height: 100vh; display: flex; flex-direction: column; align-items: center; }
         .container { max-width: 900px; width: 100%; background: #18181b; border-radius: 32px; padding: 24px 20px 40px; box-shadow: 0 10px 40px rgba(0,0,0,0.7); border: 1px solid #2a2a2e; }
+        
+        /* HEADER */
         .header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 28px; border-bottom: 1px solid #2a2a2e; padding-bottom: 16px; }
         .header h1 { font-size: 1.8rem; font-weight: 800; background: linear-gradient(135deg, #f97316, #fb923c); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
         .header .badge { background: #27272a; padding: 6px 14px; border-radius: 40px; font-size: 0.8rem; font-weight: 600; color: #a1a1aa; border: 1px solid #3f3f46; }
         .header .badge strong { color: #f97316; font-weight: 700; }
+        
+        /* LOGIN */
+        .login-container { display: flex; flex-direction: column; gap: 16px; max-width: 400px; margin: 40px auto; padding: 30px; background: #1c1c21; border-radius: 20px; border: 1px solid #2a2a2e; }
+        .login-container h2 { text-align: center; color: #f97316; }
+        .login-container input { padding: 12px 16px; border-radius: 10px; border: 1px solid #3f3f46; background: #0e0e12; color: #e4e4e7; font-size: 1rem; }
+        .login-container button { padding: 14px; border: none; border-radius: 10px; background: #f97316; color: #09090b; font-weight: 700; font-size: 1rem; cursor: pointer; transition: 0.2s; }
+        .login-container button:hover { background: #fb923c; }
+        .login-container .error { color: #ef4444; text-align: center; font-size: 0.9rem; }
+        .login-container .success { color: #4ade80; text-align: center; font-size: 0.9rem; }
+        .user-info { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; background: #1c1c21; border-radius: 12px; margin-bottom: 16px; border: 1px solid #2a2a2e; }
+        .user-info .email { color: #a1a1aa; font-size: 0.9rem; }
+        .user-info .logout-btn { background: #3f3f46; border: none; color: #e4e4e7; padding: 6px 14px; border-radius: 8px; cursor: pointer; font-size: 0.8rem; }
+        .user-info .logout-btn:hover { background: #52525b; }
+        .sync-status { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: #a1a1aa; }
+        .sync-status .synced { color: #4ade80; }
+        .sync-status .unsynced { color: #fbbf24; }
+        
+        /* TABS */
         .tabs { display: flex; gap: 8px; margin-bottom: 28px; background: #27272a; padding: 6px; border-radius: 40px; }
         .tab-btn { flex: 1; padding: 10px 0; border: none; background: transparent; color: #a1a1aa; font-weight: 700; font-size: 0.95rem; border-radius: 30px; cursor: pointer; transition: 0.2s; }
         .tab-btn.active { background: #f97316; color: #09090b; box-shadow: 0 4px 12px rgba(249,115,22,0.3); }
@@ -23,6 +47,8 @@
         .tab-content { display: none; animation: fadeUp 0.3s ease; }
         .tab-content.active { display: block; }
         @keyframes fadeUp { 0% { opacity: 0; transform: translateY(10px); } 100% { opacity: 1; transform: translateY(0); } }
+        
+        /* DIETA */
         .macro-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 10px; background: #1c1c21; padding: 16px; border-radius: 20px; margin-bottom: 28px; border: 1px solid #2a2a2e; }
         .macro-item { text-align: center; }
         .macro-item .value { display: block; font-size: 1.4rem; font-weight: 800; color: #f97316; }
@@ -36,6 +62,8 @@
         .meal-desc strong { color: #fbbf24; }
         .water-highlight { background: #1e293b; border-left-color: #38bdf8; margin-top: 8px; }
         .water-highlight .meal-time { color: #38bdf8; }
+        
+        /* TREINO */
         .day-accordion { background: #1c1c21; border-radius: 16px; margin-bottom: 12px; border: 1px solid #2a2a2e; overflow: hidden; }
         .day-header { display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; cursor: pointer; background: #1c1c21; transition: 0.15s; user-select: none; }
         .day-header:hover { background: #24242b; }
@@ -54,12 +82,15 @@
         .checkbox-treino { width: 18px; height: 18px; accent-color: #f97316; cursor: pointer; margin-right: 8px; }
         .btn-reset { background: #3f3f46; border: none; color: #e4e4e7; padding: 6px 16px; border-radius: 40px; font-size: 0.7rem; cursor: pointer; transition: 0.2s; margin-top: 4px; }
         .btn-reset:hover { background: #52525b; }
+        .btn-sync { background: #4ade80; border: none; color: #09090b; padding: 6px 16px; border-radius: 40px; font-size: 0.7rem; cursor: pointer; transition: 0.2s; font-weight: 700; }
+        .btn-sync:hover { background: #22d3ee; }
         .footer-note { margin-top: 30px; text-align: center; font-size: 0.7rem; color: #52525b; border-top: 1px solid #27272a; padding-top: 20px; }
         .footer-note strong { color: #f97316; }
+        
         @media (max-width: 600px) {
-            .exercise-row { grid-template-columns: 1fr; gap: 2px; padding: 10px 0; border-bottom: 1px solid #26262b; }
+            .exercise-row { grid-template-columns: 1fr; gap: 2px; padding: 10px 0; }
             .exercise-row.header-row { display: none; }
-            .exercise-row .ex-detail { font-size: 0.7rem; color: #a1a1aa; }
+            .exercise-row .ex-detail { font-size: 0.7rem; }
             .exercise-row .ex-detail span { display: inline-block; background: #27272a; padding: 0px 8px; border-radius: 12px; margin-right: 4px; }
             .exercise-row .carga-input { width: 60px; margin-top: 4px; }
             .day-header { flex-wrap: wrap; }
@@ -69,15 +100,50 @@
     </style>
 </head>
 <body>
+
 <div class="container">
+    <!-- HEADER -->
     <div class="header">
         <h1>🏋️ IRONFIT</h1>
         <div class="badge"><strong>92kg</strong> · 1,70m · ⏰ 20h</div>
     </div>
+
+    <!-- USER INFO / LOGIN -->
+    <div id="authSection">
+        <!-- Login Form -->
+        <div id="loginForm" class="login-container">
+            <h2>🔐 Login IronFit</h2>
+            <input type="email" id="emailInput" placeholder="Seu e-mail" required>
+            <input type="password" id="passwordInput" placeholder="Sua senha" required>
+            <button id="loginBtn">Entrar</button>
+            <button id="signupBtn" style="background: #3f3f46; color: #e4e4e7;">Criar conta</button>
+            <div id="authMessage" class="error"></div>
+        </div>
+
+        <!-- User Info (quando logado) -->
+        <div id="userInfo" style="display: none;">
+            <div class="user-info">
+                <span class="email">📧 <span id="userEmail">usuario@email.com</span></span>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <span class="sync-status">
+                        <span id="syncIndicator" class="synced">✅ Sincronizado</span>
+                    </span>
+                    <button class="logout-btn" id="logoutBtn">Sair</button>
+                </div>
+            </div>
+            <div style="display: flex; gap: 8px; justify-content: flex-end; margin-bottom: 16px;">
+                <button class="btn-sync" id="syncBtn">🔄 Sincronizar agora</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TABS -->
     <div class="tabs">
         <button class="tab-btn active" data-tab="tab-treino">🏋️ TREINO</button>
         <button class="tab-btn" data-tab="tab-dieta">🥩 DIETA</button>
     </div>
+
+    <!-- TREINO TAB -->
     <div id="tab-treino" class="tab-content active">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:8px;">
             <span style="color:#a1a1aa; font-size:0.85rem;">✅ Marque os treinos concluídos (salva automático)</span>
@@ -85,6 +151,8 @@
         </div>
         <div id="treinoContainer"></div>
     </div>
+
+    <!-- DIETA TAB -->
     <div id="tab-dieta" class="tab-content">
         <div class="macro-summary">
             <div class="macro-item"><span class="value">2600</span><span class="label">Kcal</span></div>
@@ -95,9 +163,22 @@
         </div>
         <div id="dietaContainer" class="timeline"></div>
     </div>
-    <div class="footer-note">💡 <strong>Progressão:</strong> Aumente cargas semanalmente. <strong>Deload</strong> na semana 6.<br>Dados salvos no seu navegador.</div>
+
+    <div class="footer-note">💡 <strong>Progressão:</strong> Aumente cargas semanalmente. <strong>Deload</strong> na semana 6.<br>Dados salvos na nuvem e no seu navegador.</div>
 </div>
+
 <script>
+    // ============================================================
+    // 1. CONFIGURAÇÃO SUPABASE (SUBSTITUA PELOS SEUS DADOS)
+    // ============================================================
+    const SUPABASE_URL = 'https://btzdetvoneyhzthsmdrp.supabase.co';  // ← COLOQUE SUA URL
+    const SUPABASE_ANON_KEY = 'sb_publishable_NJWhkVt39gqzkAcmvmhw_g_9coJjxnb';                 // ← COLOQUE SUA CHAVE
+
+    const supabase = supabaseJs.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // ============================================================
+    // 2. DADOS DO TREINO (fixos)
+    // ============================================================
     const treinoData = [
         {dia:"Segunda", foco:"Peito / Ombro / Tríceps", exercicios:[
             {nome:"Supino Reto com Barra", series:"4", reps:"8-10", descanso:"90s", tecnica:"Cadência 2-0-2"},
@@ -190,9 +271,229 @@
         {horario:"💧 ÁGUA", nome:"Hidratação obrigatória", descricao:"<strong>3,5 a 4 litros</strong> ao longo do dia (seu peso alto exige mais)", isWater:true}
     ];
 
+    // ============================================================
+    // 3. ESTADO DO APP
+    // ============================================================
+    let currentUser = null;
+    let currentWorkoutId = null;
+
+    // ============================================================
+    // 4. AUTENTICAÇÃO
+    // ============================================================
+    const loginForm = document.getElementById('loginForm');
+    const userInfo = document.getElementById('userInfo');
+    const userEmail = document.getElementById('userEmail');
+    const authMessage = document.getElementById('authMessage');
+
+    // Verifica sessão ao carregar
+    async function checkSession() {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+            currentUser = session.user;
+            showUserInfo();
+            await loadUserData();
+        }
+    }
+
+    async function login(email, password) {
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) {
+            authMessage.textContent = '❌ ' + error.message;
+            return;
+        }
+        currentUser = data.user;
+        showUserInfo();
+        await loadUserData();
+        authMessage.textContent = '';
+    }
+
+    async function signup(email, password) {
+        const { data, error } = await supabase.auth.signUp({ email, password });
+        if (error) {
+            authMessage.textContent = '❌ ' + error.message;
+            return;
+        }
+        authMessage.className = 'success';
+        authMessage.textContent = '✅ Conta criada! Verifique seu e-mail e faça login.';
+    }
+
+    async function logout() {
+        await supabase.auth.signOut();
+        currentUser = null;
+        loginForm.style.display = 'block';
+        userInfo.style.display = 'none';
+        document.getElementById('treinoContainer').innerHTML = '<p style="color: #a1a1aa; text-align: center; padding: 40px;">🔐 Faça login para ver seus treinos</p>';
+    }
+
+    function showUserInfo() {
+        loginForm.style.display = 'none';
+        userInfo.style.display = 'block';
+        userEmail.textContent = currentUser.email;
+    }
+
+    // Event listeners
+    document.getElementById('loginBtn').addEventListener('click', () => {
+        const email = document.getElementById('emailInput').value;
+        const password = document.getElementById('passwordInput').value;
+        login(email, password);
+    });
+
+    document.getElementById('signupBtn').addEventListener('click', () => {
+        const email = document.getElementById('emailInput').value;
+        const password = document.getElementById('passwordInput').value;
+        signup(email, password);
+    });
+
+    document.getElementById('logoutBtn').addEventListener('click', logout);
+
+    document.getElementById('emailInput').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') document.getElementById('loginBtn').click();
+    });
+    document.getElementById('passwordInput').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') document.getElementById('loginBtn').click();
+    });
+
+    // ============================================================
+    // 5. SUPABASE - CARREGAR E SALVAR DADOS
+    // ============================================================
+
+    // Carrega os treinos do Supabase
+    async function loadUserData() {
+        if (!currentUser) return;
+
+        try {
+            // Busca ou cria o workout de hoje
+            const today = new Date().toISOString().split('T')[0];
+            const dayOfWeek = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'][new Date().getDay()];
+            
+            // Verifica se já existe um workout para hoje
+            const { data: existingWorkout, error: searchError } = await supabase
+                .from('workouts')
+                .select('*')
+                .eq('user_id', currentUser.id)
+                .eq('workout_date', today)
+                .single();
+
+            if (searchError && searchError.code !== 'PGRST116') { // PGRST116 = not found
+                console.error('Erro ao buscar workout:', searchError);
+                return;
+            }
+
+            if (existingWorkout) {
+                currentWorkoutId = existingWorkout.id;
+                // Carrega os logs de exercícios
+                await loadExerciseLogs(existingWorkout.id);
+                // Atualiza checkbox
+                const checkbox = document.querySelector(`.checkbox-treino[data-day="${dayOfWeek}"]`);
+                if (checkbox) checkbox.checked = existingWorkout.completed;
+            } else {
+                // Cria novo workout
+                const { data: newWorkout, error: createError } = await supabase
+                    .from('workouts')
+                    .insert({
+                        user_id: currentUser.id,
+                        workout_date: today,
+                        day_of_week: dayOfWeek,
+                        completed: false
+                    })
+                    .select()
+                    .single();
+
+                if (createError) {
+                    console.error('Erro ao criar workout:', createError);
+                    return;
+                }
+
+                currentWorkoutId = newWorkout.id;
+                // Cria os logs para os exercícios do dia
+                await createExerciseLogs(newWorkout.id, dayOfWeek);
+            }
+
+        } catch (error) {
+            console.error('Erro ao carregar dados:', error);
+        }
+    }
+
+    // Carrega os logs de exercícios
+    async function loadExerciseLogs(workoutId) {
+        const { data: logs, error } = await supabase
+            .from('exercise_logs')
+            .select('*')
+            .eq('workout_id', workoutId);
+
+        if (error) {
+            console.error('Erro ao carregar logs:', error);
+            return;
+        }
+
+        // Atualiza os inputs de carga
+        logs.forEach(log => {
+            const input = document.querySelector(`.carga-input[data-ex="${log.exercise_name}"]`);
+            if (input) {
+                input.value = log.carga_sem1 || '';
+                // Salva no localStorage para offline
+                localStorage.setItem(`carga_${log.exercise_name}`, log.carga_sem1 || '');
+            }
+        });
+    }
+
+    // Cria os logs para os exercícios do dia
+    async function createExerciseLogs(workoutId, dayOfWeek) {
+        const dayData = treinoData.find(d => d.dia === dayOfWeek);
+        if (!dayData) return;
+
+        const allExercises = [...dayData.exercicios, ...dayData.pos];
+
+        for (const ex of allExercises) {
+            const { error } = await supabase
+                .from('exercise_logs')
+                .insert({
+                    workout_id: workoutId,
+                    exercise_name: ex.nome,
+                    series: ex.series || '-',
+                    reps: ex.reps || '-',
+                    rest_time: ex.descanso || '-',
+                    technique: ex.tecnica || '-',
+                    is_post_workout: ex.nome.includes('🏃') || ex.nome.includes('🔷')
+                });
+
+            if (error) console.error('Erro ao criar log:', error);
+        }
+    }
+
+    // Salva o status do treino (completo/incompleto)
+    async function saveWorkoutStatus(day, completed) {
+        if (!currentUser || !currentWorkoutId) return;
+
+        const { error } = await supabase
+            .from('workouts')
+            .update({ completed })
+            .eq('id', currentWorkoutId);
+
+        if (error) console.error('Erro ao salvar status:', error);
+    }
+
+    // Salva a carga de um exercício
+    async function saveExerciseCarga(exerciseName, carga) {
+        if (!currentUser || !currentWorkoutId) return;
+
+        const { error } = await supabase
+            .from('exercise_logs')
+            .update({ carga_sem1: carga })
+            .eq('workout_id', currentWorkoutId)
+            .eq('exercise_name', exerciseName);
+
+        if (error) console.error('Erro ao salvar carga:', error);
+    }
+
+    // ============================================================
+    // 6. RENDERIZAÇÃO DO TREINO (com integração Supabase)
+    // ============================================================
+
     function renderTreino() {
         const container = document.getElementById('treinoContainer');
         container.innerHTML = '';
+
         treinoData.forEach((day, idx) => {
             const accordion = document.createElement('div');
             accordion.className = 'day-accordion';
@@ -200,16 +501,26 @@
             header.className = 'day-header';
             const nameDiv = document.createElement('div');
             nameDiv.className = 'day-name';
+            
             const checkbox = document.createElement('input');
             checkbox.type = 'checkbox';
             checkbox.className = 'checkbox-treino';
             checkbox.dataset.day = day.dia;
+            
+            // Carrega do localStorage (offline) e Supabase (online)
             const saved = localStorage.getItem(`treino_${day.dia}`);
             if (saved === 'true') checkbox.checked = true;
-            checkbox.addEventListener('change', (e) => {
-                localStorage.setItem(`treino_${day.dia}`, e.target.checked);
+            
+            checkbox.addEventListener('change', async (e) => {
+                const isChecked = e.target.checked;
+                localStorage.setItem(`treino_${day.dia}`, isChecked);
                 updateIndicator(day.dia, indicatorSpan);
+                // Salva no Supabase se estiver logado
+                if (currentUser) {
+                    await saveWorkoutStatus(day.dia, isChecked);
+                }
             });
+            
             const indicatorSpan = document.createElement('span');
             indicatorSpan.className = 'check-indicator';
             indicatorSpan.textContent = checkbox.checked ? '✅' : '⬜';
@@ -217,22 +528,27 @@
                 const isChecked = localStorage.getItem(`treino_${dia}`) === 'true';
                 span.textContent = isChecked ? '✅' : '⬜';
             }
+            
             const nameText = document.createElement('span');
             nameText.textContent = `${day.dia} · ${day.foco}`;
             nameDiv.appendChild(checkbox);
             nameDiv.appendChild(indicatorSpan);
             nameDiv.appendChild(nameText);
+            
             const meta = document.createElement('span');
             meta.className = 'day-meta';
             meta.textContent = `${day.exercicios.length} exercícios`;
             header.appendChild(nameDiv);
             header.appendChild(meta);
+            
             const body = document.createElement('div');
             body.className = 'day-body';
+            
             const headerRow = document.createElement('div');
             headerRow.className = 'exercise-row header-row';
             headerRow.innerHTML = `<span>Exercício</span><span>Séries</span><span>Reps</span><span>Descanso</span><span>Carga (Sem1-4)</span>`;
             body.appendChild(headerRow);
+            
             day.exercicios.forEach(ex => {
                 const row = document.createElement('div');
                 row.className = 'exercise-row';
@@ -246,13 +562,19 @@
                     </span>
                 `;
                 const input = row.querySelector('.carga-input');
-                const savedCarga = localStorage.getItem(`carga_${day.dia}_${ex.nome}`);
+                const savedCarga = localStorage.getItem(`carga_${ex.nome}`);
                 if (savedCarga) input.value = savedCarga;
-                input.addEventListener('change', (e) => {
-                    localStorage.setItem(`carga_${day.dia}_${ex.nome}`, e.target.value);
+                
+                input.addEventListener('change', async (e) => {
+                    const valor = e.target.value;
+                    localStorage.setItem(`carga_${ex.nome}`, valor);
+                    if (currentUser) {
+                        await saveExerciseCarga(ex.nome, valor);
+                    }
                 });
                 body.appendChild(row);
             });
+            
             if (day.pos && day.pos.length > 0) {
                 const subTitle = document.createElement('div');
                 subTitle.className = 'sub-section';
@@ -265,12 +587,14 @@
                     body.appendChild(row);
                 });
             }
+            
             let isOpen = false;
             header.addEventListener('click', (e) => {
                 if (e.target.type === 'checkbox') return;
                 isOpen = !isOpen;
                 body.classList.toggle('open', isOpen);
             });
+            
             accordion.appendChild(header);
             accordion.appendChild(body);
             container.appendChild(accordion);
@@ -303,6 +627,10 @@
         });
     }
 
+    // ============================================================
+    // 7. TABS E RESET
+    // ============================================================
+
     function initTabs() {
         const buttons = document.querySelectorAll('.tab-btn');
         const contents = { treino: document.getElementById('tab-treino'), dieta: document.getElementById('tab-dieta') };
@@ -327,8 +655,33 @@
                 }
             });
             renderTreino();
+            // Recarrega do Supabase também
+            if (currentUser) loadUserData();
         }
     });
+
+    // Botão de sincronização manual
+    document.getElementById('syncBtn').addEventListener('click', async () => {
+        if (!currentUser) {
+            alert('Faça login primeiro!');
+            return;
+        }
+        const syncIndicator = document.getElementById('syncIndicator');
+        syncIndicator.textContent = '⏳ Sincronizando...';
+        syncIndicator.className = 'unsynced';
+        
+        await loadUserData();
+        
+        syncIndicator.textContent = '✅ Sincronizado';
+        syncIndicator.className = 'synced';
+        setTimeout(() => {
+            syncIndicator.textContent = '✅ Sincronizado';
+        }, 3000);
+    });
+
+    // ============================================================
+    // 8. SERVICE WORKER
+    // ============================================================
 
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', function() {
@@ -342,14 +695,21 @@
         });
     }
 
+    // ============================================================
+    // 9. INIT
+    // ============================================================
+
     renderTreino();
     renderDieta();
     initTabs();
+    checkSession();
+
     setTimeout(() => {
         const firstBody = document.querySelector('.day-body');
         if (firstBody) firstBody.classList.add('open');
     }, 100);
-    console.log('🏋️ IronFit carregado! Bora treinar!');
+
+    console.log('🏋️ IronFit com Supabase carregado!');
 </script>
 </body>
 </html>
