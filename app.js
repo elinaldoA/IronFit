@@ -127,6 +127,9 @@ const state = {
     saveTimers:   {},
 };
 
+let dashLogs    = [];
+let dashLoading = false;
+
 /* ============================================================
    TOAST
 ============================================================ */
@@ -532,6 +535,7 @@ function initTabs() {
     const pages = {
         treino: document.getElementById('page-treino'),
         dieta:  document.getElementById('page-dieta'),
+        dash:   document.getElementById('page-dash'),
         perfil: document.getElementById('page-perfil'),
     };
 
@@ -544,6 +548,7 @@ function initTabs() {
                 page.classList.toggle('active', key === target);
             });
             if (target === 'perfil' && state.user) loadProfileStats();
+            if (target === 'dash'   && state.user) loadDashboard();
         });
     });
 }
@@ -687,6 +692,271 @@ function refreshIndicator(dia) {
 
 function escapeAttr(str) {
     return String(str).replace(/"/g, '&quot;');
+}
+
+/* ============================================================
+   DASHBOARD — Evolução
+============================================================ */
+async function loadDashboard() {
+    if (!state.user || dashLoading) return;
+    dashLoading = true;
+
+    try {
+        const since = new Date();
+        since.setDate(since.getDate() - 59);
+        const sinceStr = since.toISOString().split('T')[0];
+
+        const { data: workouts, error: wErr } = await db
+            .from('workouts')
+            .select('id, workout_date, completed')
+            .eq('user_id', state.user.id)
+            .gte('workout_date', sinceStr)
+            .order('workout_date', { ascending: true });
+
+        if (wErr) throw wErr;
+
+        renderHeatmap(workouts || []);
+        renderWeeklyBars(workouts || []);
+
+        const ids = (workouts || []).map(w => w.id);
+        if (ids.length > 0) {
+            const { data: logs, error: lErr } = await db
+                .from('exercise_logs')
+                .select('exercise_name, carga_sem1, workout_id')
+                .in('workout_id', ids)
+                .not('carga_sem1', 'is', null)
+                .neq('carga_sem1', '');
+            if (lErr) throw lErr;
+
+            const dateMap = Object.fromEntries((workouts || []).map(w => [w.id, w.workout_date]));
+            dashLogs = (logs || []).map(l => ({ ...l, workout_date: dateMap[l.workout_id] }));
+        } else {
+            dashLogs = [];
+        }
+
+        renderPRs(dashLogs);
+        populateExerciseSelect(dashLogs);
+
+    } catch (err) {
+        console.error('loadDashboard:', err);
+        toast('⚠️ Erro ao carregar evolução');
+    } finally {
+        dashLoading = false;
+    }
+}
+
+function renderHeatmap(workouts) {
+    const container = document.getElementById('dashHeatmap');
+    if (!container) return;
+
+    const dateMap = {};
+    workouts.forEach(w => { dateMap[w.workout_date] = w.completed ? 'done' : 'miss'; });
+
+    const today   = new Date(TODAY_DATE);
+    const todayDow = today.getDay();
+    const currentMonday = new Date(today);
+    currentMonday.setDate(today.getDate() - (todayDow === 0 ? 6 : todayDow - 1));
+
+    const startMonday = new Date(currentMonday);
+    startMonday.setDate(currentMonday.getDate() - 28);
+
+    container.innerHTML = '';
+    for (let i = 0; i < 35; i++) {
+        const d = new Date(startMonday);
+        d.setDate(startMonday.getDate() + i);
+        const dateStr = d.toISOString().split('T')[0];
+        const isFuture  = d > today;
+        const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+
+        let cls = 'none';
+        if (isFuture)                    cls = 'future';
+        else if (dateMap[dateStr] === 'done') cls = 'done';
+        else if (dateMap[dateStr] === 'miss') cls = 'miss';
+        else if (isWeekend)              cls = 'rest';
+
+        const cell = document.createElement('div');
+        cell.className = `heatmap-cell heatmap-cell--${cls}`;
+        cell.title = dateStr;
+        container.appendChild(cell);
+    }
+}
+
+function renderWeeklyBars(workouts) {
+    const container = document.getElementById('dashBarChart');
+    if (!container) return;
+
+    const today    = new Date(TODAY_DATE);
+    const todayDow = today.getDay();
+    const currentMonday = new Date(today);
+    currentMonday.setDate(today.getDate() - (todayDow === 0 ? 6 : todayDow - 1));
+
+    const buckets = [];
+    for (let w = 7; w >= 0; w--) {
+        const mon = new Date(currentMonday);
+        mon.setDate(currentMonday.getDate() - w * 7);
+        const sun = new Date(mon);
+        sun.setDate(mon.getDate() + 6);
+        const mStr = mon.toISOString().split('T')[0];
+        const sStr = sun.toISOString().split('T')[0];
+        const label = w === 0 ? 'Esta' : w === 1 ? 'Ant.' :
+            `${String(mon.getDate()).padStart(2,'0')}/${String(mon.getMonth()+1).padStart(2,'0')}`;
+        buckets.push({ mStr, sStr, label, done: 0 });
+    }
+
+    workouts.filter(w => w.completed).forEach(w => {
+        const b = buckets.find(b => w.workout_date >= b.mStr && w.workout_date <= b.sStr);
+        if (b) b.done++;
+    });
+
+    container.innerHTML = buckets.map(({ label, done }) => `
+        <div class="bar-col">
+            <div class="bar-col__wrap">
+                <div class="bar-col__fill" style="height:${Math.round((done/5)*100)}%"></div>
+            </div>
+            <span class="bar-col__val">${done}</span>
+            <span class="bar-col__label">${label}</span>
+        </div>
+    `).join('');
+}
+
+function renderPRs(logs) {
+    const container = document.getElementById('dashPRList');
+    if (!container) return;
+
+    if (!logs.length) {
+        container.innerHTML = '<p class="dash-empty">Nenhuma carga registrada ainda. Registre cargas na aba Treino.</p>';
+        return;
+    }
+
+    const prMap = {};
+    logs.forEach(log => {
+        const val = parseFloat(log.carga_sem1);
+        if (isNaN(val)) return;
+        if (!prMap[log.exercise_name] || val > prMap[log.exercise_name].val) {
+            prMap[log.exercise_name] = { val, date: log.workout_date };
+        }
+    });
+
+    const sorted = Object.entries(prMap)
+        .sort((a, b) => b[1].val - a[1].val)
+        .slice(0, 12);
+
+    if (!sorted.length) {
+        container.innerHTML = '<p class="dash-empty">Nenhuma carga numérica registrada ainda.</p>';
+        return;
+    }
+
+    container.innerHTML = sorted.map(([name, { val, date }]) => `
+        <div class="pr-row">
+            <div class="pr-row__name">${name}</div>
+            <div class="pr-row__right">
+                <span class="pr-row__val">${val}kg</span>
+                <span class="pr-row__date">${fmtDate(date)}</span>
+            </div>
+        </div>
+    `).join('');
+}
+
+function populateExerciseSelect(logs) {
+    const select = document.getElementById('dashExerciseSelect');
+    if (!select) return;
+
+    const exercises = [...new Set(logs.filter(l => !isNaN(parseFloat(l.carga_sem1))).map(l => l.exercise_name))].sort();
+    const prev = select.value;
+
+    select.innerHTML = '<option value="">Selecione um exercício</option>' +
+        exercises.map(n => `<option value="${escapeAttr(n)}"${n === prev ? ' selected' : ''}>${n}</option>`).join('');
+
+    if (prev && exercises.includes(prev)) renderLoadChart(prev, logs);
+
+    select.onchange = () => {
+        const ex = select.value;
+        if (ex) renderLoadChart(ex, dashLogs);
+        else clearLoadChart();
+    };
+}
+
+function renderLoadChart(exerciseName, logs) {
+    const svg   = document.getElementById('dashLineChart');
+    const empty = document.getElementById('dashLineEmpty');
+    if (!svg) return;
+
+    const pts = logs
+        .filter(l => l.exercise_name === exerciseName && !isNaN(parseFloat(l.carga_sem1)))
+        .sort((a, b) => a.workout_date.localeCompare(b.workout_date));
+
+    if (pts.length < 2) {
+        svg.innerHTML = '';
+        empty.style.display = 'block';
+        empty.textContent = pts.length === 1
+            ? `1 registro: ${parseFloat(pts[0].carga_sem1)}kg — treine mais vezes para ver a evolução`
+            : 'Nenhum registro para este exercício';
+        return;
+    }
+
+    empty.style.display = 'none';
+
+    const W = 300, H = 120, pX = 12, pY = 18, pB = 22;
+    const cW = W - pX * 2, cH = H - pY - pB;
+    const values = pts.map(p => parseFloat(p.carga_sem1));
+    const labels = pts.map(p => fmtDate(p.workout_date));
+    const minV = Math.min(...values), maxV = Math.max(...values);
+    const rangeV = maxV - minV || 1;
+
+    const toXY = (i) => ({
+        x: pX + (i / (values.length - 1)) * cW,
+        y: pY + cH - ((values[i] - minV) / rangeV) * cH,
+    });
+
+    const points = values.map((_, i) => { const p = toXY(i); return `${p.x},${p.y}`; });
+
+    const areaPoints = [
+        `${pX},${pY + cH}`,
+        ...points,
+        `${pX + cW},${pY + cH}`,
+    ];
+
+    const circles = values.map((_, i) => {
+        const { x, y } = toXY(i);
+        return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.5" fill="var(--primary)" stroke="var(--bg)" stroke-width="1.5"/>`;
+    }).join('');
+
+    const maxI = values.indexOf(maxV);
+    const { x: mX, y: mY } = toXY(maxI);
+
+    const edgeLabels = [0, values.length - 1].map(i => {
+        const { x } = toXY(i);
+        const anchor = i === 0 ? 'start' : 'end';
+        return `<text x="${x.toFixed(1)}" y="${H - 4}" text-anchor="${anchor}" font-size="8.5" fill="var(--text-dim)">${labels[i]}</text>`;
+    }).join('');
+
+    svg.innerHTML = `
+        <defs>
+            <linearGradient id="ag" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="var(--primary)" stop-opacity="0.3"/>
+                <stop offset="100%" stop-color="var(--primary)" stop-opacity="0.01"/>
+            </linearGradient>
+        </defs>
+        <polygon points="${areaPoints.join(' ')}" fill="url(#ag)"/>
+        <polyline points="${points.join(' ')}" fill="none" stroke="var(--primary)" stroke-width="2.2"
+                  stroke-linejoin="round" stroke-linecap="round"/>
+        ${circles}
+        ${edgeLabels}
+        <text x="${mX.toFixed(1)}" y="${(mY - 8).toFixed(1)}" text-anchor="middle"
+              font-size="9.5" font-weight="bold" fill="var(--primary)">${maxV}kg</text>
+    `;
+}
+
+function clearLoadChart() {
+    const svg = document.getElementById('dashLineChart');
+    const empty = document.getElementById('dashLineEmpty');
+    if (svg)   svg.innerHTML = '';
+    if (empty) { empty.style.display = 'block'; empty.textContent = 'Selecione um exercício com carga registrada'; }
+}
+
+function fmtDate(dateStr) {
+    const d = new Date(dateStr + 'T12:00:00');
+    return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
 }
 
 /* ============================================================
