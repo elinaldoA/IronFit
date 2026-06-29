@@ -1,4 +1,4 @@
-const CACHE_NAME = 'meu-plano-v6';
+const CACHE_NAME = 'meu-plano-v7';
 const urlsToCache = [
   './',
   './index.html',
@@ -11,7 +11,7 @@ self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
-        console.log('✅ Cache do NOVO app aberto');
+        console.log('✅ Cache do app aberto');
         return cache.addAll(urlsToCache);
       })
       .then(() => self.skipWaiting())
