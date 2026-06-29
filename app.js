@@ -188,6 +188,7 @@ async function onLoggedIn() {
     renderUserChip();
     await loadUserData();
     updateWeekProgress();
+    loadProfileStats();
 }
 
 async function doLogin() {
@@ -531,6 +532,7 @@ function initTabs() {
     const pages = {
         treino: document.getElementById('page-treino'),
         dieta:  document.getElementById('page-dieta'),
+        perfil: document.getElementById('page-perfil'),
     };
 
     items.forEach(item => {
@@ -541,8 +543,102 @@ function initTabs() {
             Object.entries(pages).forEach(([key, page]) => {
                 page.classList.toggle('active', key === target);
             });
+            if (target === 'perfil' && state.user) loadProfileStats();
         });
     });
+}
+
+/* ============================================================
+   PROFILE & STATS
+============================================================ */
+async function loadProfileStats() {
+    if (!state.user) return;
+
+    const email = state.user.email || '';
+    const since = new Date(state.user.created_at);
+
+    document.getElementById('profileAvatar').textContent = email[0]?.toUpperCase() || '?';
+    document.getElementById('profileEmail').textContent  = email;
+    document.getElementById('profileSince').textContent  =
+        'Membro desde ' + since.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+
+    const peso   = localStorage.getItem('profile_peso')   || '';
+    const altura = localStorage.getItem('profile_altura') || '';
+    document.getElementById('profilePeso').value   = peso;
+    document.getElementById('profileAltura').value = altura;
+    document.getElementById('profileMeta').value   = localStorage.getItem('profile_meta') || 'massa';
+    updateImc(parseFloat(peso), parseFloat(altura));
+
+    try {
+        const { data: workouts, error } = await db
+            .from('workouts')
+            .select('workout_date')
+            .eq('user_id', state.user.id)
+            .eq('completed', true)
+            .order('workout_date', { ascending: false });
+
+        if (error) throw error;
+
+        const total  = workouts.length;
+        const wStart = getWeekStart();
+        const week   = workouts.filter(w => w.workout_date >= wStart).length;
+        const streak = calcStreak(workouts.map(w => w.workout_date));
+
+        document.getElementById('statTotalVal').textContent  = total;
+        document.getElementById('statWeekVal').textContent   = `${week}/5`;
+        document.getElementById('statStreakVal').textContent = streak > 0 ? `${streak}d` : '0d';
+    } catch (err) {
+        console.error('loadProfileStats:', err);
+    }
+}
+
+function getWeekStart() {
+    const now  = new Date();
+    const day  = now.getDay();
+    const diff = now.getDate() - day + (day === 0 ? -6 : 1);
+    return new Date(now.getFullYear(), now.getMonth(), diff).toISOString().split('T')[0];
+}
+
+function calcStreak(dates) {
+    if (!dates.length) return 0;
+    const unique = [...new Set(dates)].sort().reverse();
+    let streak = 0;
+    let prev   = new Date(TODAY_DATE);
+    for (const d of unique) {
+        const curr = new Date(d);
+        const diff = Math.round((prev - curr) / 86400000);
+        if (diff <= 1) { streak++; prev = curr; }
+        else break;
+    }
+    return streak;
+}
+
+function updateImc(peso, altura) {
+    const card = document.getElementById('imcCard');
+    if (!peso || !altura || peso < 30 || altura < 100) { card.style.display = 'none'; return; }
+    const imc = peso / ((altura / 100) ** 2);
+    const cls =
+        imc < 18.5 ? 'Abaixo do peso' :
+        imc < 25   ? 'Peso normal'     :
+        imc < 30   ? 'Sobrepeso'       :
+        imc < 35   ? 'Obesidade grau I': 'Obesidade grau II+';
+    document.getElementById('imcValue').textContent = imc.toFixed(1);
+    document.getElementById('imcClass').textContent = cls;
+    card.style.display = 'flex';
+}
+
+function initProfile() {
+    document.getElementById('saveProfileBtn').addEventListener('click', () => {
+        const peso   = document.getElementById('profilePeso').value;
+        const altura = document.getElementById('profileAltura').value;
+        const meta   = document.getElementById('profileMeta').value;
+        localStorage.setItem('profile_peso',   peso);
+        localStorage.setItem('profile_altura', altura);
+        localStorage.setItem('profile_meta',   meta);
+        updateImc(parseFloat(peso), parseFloat(altura));
+        toast('Perfil salvo!');
+    });
+    document.getElementById('logoutBtnPerfil').addEventListener('click', doLogout);
 }
 
 /* ============================================================
@@ -613,6 +709,7 @@ function init() {
     initTabs();
     initResetBtn();
     initAuthEvents();
+    initProfile();
     updateWeekProgress();
     checkSession();
     registerSW();
