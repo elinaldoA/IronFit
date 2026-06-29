@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ironfit-v2';
+const CACHE_NAME = 'ironfit-v3';
 const urlsToCache = [
   './',
   './index.html',
