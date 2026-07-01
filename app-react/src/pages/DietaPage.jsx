@@ -22,11 +22,10 @@ function fmtLiters(ml) {
 
 function MealCard({ meal, bump, user }) {
   const toast = useToast();
-  const [done, setDone] = useState(() => localStorage.getItem(mealKey(meal)) === 'true');
+  const done = localStorage.getItem(mealKey(meal)) === 'true';
 
   async function toggle() {
     const next = !done;
-    setDone(next);
     localStorage.setItem(mealKey(meal), next);
     bump();
     toast(next ? '✅ Refeição marcada!' : 'Refeição desmarcada');
