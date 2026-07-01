@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { db } from '../lib/supabase';
-import { treinoData, TODAY_NAME, TODAY_DATE, getMuscleGroupsForDay } from '../data/treinoData';
+import { treinoData, TODAY_NAME, TODAY_DATE, getMuscleGroupsForDay, getWeeklyGoal } from '../data/treinoData';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { fmtDate, parseLocalDate, toDateStr, getWeekStart } from '../lib/utils';
@@ -48,7 +48,7 @@ function Heatmap({ workouts }) {
   );
 }
 
-function WeeklyBars({ workouts }) {
+function WeeklyBars({ workouts, weeklyGoal }) {
   const today = parseLocalDate(TODAY_DATE);
   const todayDow = today.getDay();
   const currentMonday = new Date(today);
@@ -77,7 +77,7 @@ function WeeklyBars({ workouts }) {
       {buckets.map(b => (
         <div className="bar-col" key={b.label + b.mStr}>
           <div className="bar-col__wrap">
-            <div className="bar-col__fill" style={{ height: `${Math.round((b.done / 5) * 100)}%` }} />
+            <div className="bar-col__fill" style={{ height: `${Math.round((b.done / weeklyGoal) * 100)}%` }} />
           </div>
           <span className="bar-col__val">{b.done}</span>
           <span className="bar-col__label">{b.label}</span>
@@ -179,6 +179,7 @@ export default function DashPage({ active }) {
   const [loading, setLoading] = useState(false);
   const [loadingPR, setLoadingPR] = useState(false);
 
+  const weeklyGoal = getWeeklyGoal(user);
   const day = treinoData.find(d => d.dia === TODAY_NAME);
   const todayCompleted = workouts.find(w => w.workout_date === TODAY_DATE)?.completed ?? false;
   const activeGroups = day && todayCompleted ? getMuscleGroupsForDay(day) : new Set();
@@ -329,7 +330,7 @@ export default function DashPage({ active }) {
 
       <div className="dash-card">
         <div className="dash-card__title">Treinos concluídos por semana</div>
-        {loading ? <Skeleton height={110} /> : <WeeklyBars workouts={workouts} />}
+        {loading ? <Skeleton height={110} /> : <WeeklyBars workouts={workouts} weeklyGoal={weeklyGoal} />}
       </div>
 
       <div className="dash-card">

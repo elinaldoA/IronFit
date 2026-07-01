@@ -446,6 +446,8 @@ button, input { font-family: inherit; }
 
 .toolbar__hint { font-size: 0.73rem; color: var(--text-dim); }
 
+.toolbar__actions { display: flex; align-items: center; gap: 4px; }
+
 /* ============================================================
    ACCORDION — DIAS DE TREINO
 ============================================================ */
@@ -719,6 +721,24 @@ button, input { font-family: inherit; }
    REFEIÇÕES
 ============================================================ */
 .meals { display: flex; flex-direction: column; gap: 8px; }
+
+.meal-edit-list { display: flex; flex-direction: column; gap: 10px; }
+
+.meal-edit-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 12px;
+}
+
+.meal-edit-row__fields {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 8px;
+}
 
 .meal-card {
   display: flex;

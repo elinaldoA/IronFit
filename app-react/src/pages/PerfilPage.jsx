@@ -6,8 +6,8 @@ import { getWeekStart, calcStreak, fmtDate } from '../lib/utils';
 import { TODAY_DATE } from '../data/treinoData';
 import { fetchWeightLogs, upsertWeightLog } from '../lib/weightLog';
 import { saveAvatar, fetchAvatar } from '../lib/avatar';
-import { DEFAULT_MACROS } from '../data/treinoData';
-import { isNotificationSupported } from '../lib/notifications';
+import { DEFAULT_MACROS, DEFAULT_WEEKLY_GOAL } from '../data/treinoData';
+import { isNotificationSupported, sendNotification } from '../lib/notifications';
 import { useReminders } from '../hooks/useReminders';
 import LineChart from '../components/LineChart';
 
@@ -49,6 +49,7 @@ export default function PerfilPage({ active }) {
   const [macroCarboidrato, setMacroCarboidrato] = useState(md.macroCarboidrato || localStorage.getItem('profile_macroCarboidrato') || '');
   const [macroGordura, setMacroGordura] = useState(md.macroGordura || localStorage.getItem('profile_macroGordura') || '');
   const [macroAgua, setMacroAgua] = useState(md.macroAgua || localStorage.getItem('profile_macroAgua') || '');
+  const [weeklyGoal, setWeeklyGoal] = useState(md.weeklyGoal || localStorage.getItem('profile_weeklyGoal') || DEFAULT_WEEKLY_GOAL);
   const [stats, setStats] = useState({ total: '–', week: '–', streak: '–' });
   const [weightLogs, setWeightLogs] = useState([]);
   const [avatarData, setAvatarData] = useState(null);
@@ -93,7 +94,7 @@ export default function PerfilPage({ active }) {
         const week = workouts.filter(w => w.workout_date >= wStart).length;
         const streak = calcStreak(workouts.map(w => w.workout_date));
 
-        setStats({ total, week: `${week}/5`, streak: streak > 0 ? `${streak}d` : '0d' });
+        setStats({ total, week, streak: streak > 0 ? `${streak}d` : '0d' });
       } catch (err) {
         console.error('loadProfileStats:', err);
         toast('⚠️ Erro ao carregar estatísticas');
@@ -139,6 +140,12 @@ export default function PerfilPage({ active }) {
     toast('Perfil salvo!');
   }
 
+  async function handleSaveWeeklyGoal() {
+    localStorage.setItem('profile_weeklyGoal', weeklyGoal);
+    await updateProfile({ weeklyGoal });
+    toast('📅 Meta semanal salva!');
+  }
+
   async function handleSaveMacros() {
     localStorage.setItem('profile_macroKcal', macroKcal);
     localStorage.setItem('profile_macroProteina', macroProteina);
@@ -171,6 +178,7 @@ export default function PerfilPage({ active }) {
     if (error) toast(`⚠️ ${error}`);
   }
 
+  const weeklyGoalNum = parseInt(weeklyGoal, 10) || DEFAULT_WEEKLY_GOAL;
   const since = user ? new Date(user.created_at) : null;
   const imc = imcInfo(parseFloat(peso), parseFloat(altura));
   const progress = useMemo(
@@ -202,7 +210,9 @@ export default function PerfilPage({ active }) {
 
       <div className="stats-grid">
         <div className="stat-card">
-          <span className="stat-card__value">{stats.week}</span>
+          <span className="stat-card__value">
+            {typeof stats.week === 'number' ? `${stats.week}/${weeklyGoalNum}` : stats.week}
+          </span>
           <span className="stat-card__label">Esta semana</span>
         </div>
         <div className="stat-card stat-card--streak">
@@ -270,6 +280,18 @@ export default function PerfilPage({ active }) {
           </div>
         )}
         <button className="btn btn--primary btn--full" onClick={handleSave}>Salvar dados corporais</button>
+      </div>
+
+      <div className="profile-section">
+        <div className="profile-section__title">Meta Semanal de Treinos</div>
+        <div className="profile-field">
+          <label className="profile-field__label" htmlFor="weeklyGoal">Treinos por semana</label>
+          <input
+            type="number" id="weeklyGoal" className="input input--sm" placeholder={String(DEFAULT_WEEKLY_GOAL)}
+            min="1" max="7" step="1" value={weeklyGoal} onChange={e => setWeeklyGoal(e.target.value)}
+          />
+        </div>
+        <button className="btn btn--primary btn--full" onClick={handleSaveWeeklyGoal}>Salvar meta semanal</button>
       </div>
 
       <div className="profile-section">
@@ -342,6 +364,23 @@ export default function PerfilPage({ active }) {
         </div>
         {!isNotificationSupported() && (
           <p className="dash-empty">Notificações não são suportadas neste navegador.</p>
+        )}
+        <button
+          type="button" className="btn btn--outline btn--full"
+          disabled={!remindersEnabled}
+          onClick={async () => {
+            try {
+              await sendNotification('🔔 Notificação de teste', { body: 'Se você está vendo isso, os lembretes estão funcionando!' });
+              toast('✅ Notificação enviada — se não apareceu, confira as notificações do sistema/navegador');
+            } catch (err) {
+              toast(`⚠️ Falha ao enviar: ${err.message}`);
+            }
+          }}
+        >
+          Enviar notificação de teste
+        </button>
+        {!remindersEnabled && (
+          <p className="dash-empty">Ative os lembretes acima para poder testar.</p>
         )}
       </div>
 

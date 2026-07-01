@@ -112,6 +112,19 @@ export const dietaData = [
     { horario:'23:30', nome:'🥛 Ceia (opcional)',         descricao:'Se bater fome: 2 ovos cozidos ou 1 scoop caseína com água' },
 ];
 
+export function getDietaData(user) {
+    const custom = user?.user_metadata?.customMeals;
+    return Array.isArray(custom) && custom.length > 0 ? custom : dietaData;
+}
+
+export const DEFAULT_WEEKLY_GOAL = 5;
+
+export function getWeeklyGoal(user) {
+    const raw = user?.user_metadata?.weeklyGoal ?? localStorage.getItem('profile_weeklyGoal');
+    const n = parseInt(raw, 10);
+    return Number.isFinite(n) && n > 0 && n <= 7 ? n : DEFAULT_WEEKLY_GOAL;
+}
+
 export const MUSCLE_MAP = {
     'Peito':        ['chest'],
     'Ombro':        ['shoulders'],

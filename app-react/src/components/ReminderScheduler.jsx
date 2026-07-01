@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { dietaData, TODAY_DATE, WATER_STORAGE_KEY, getMacroGoals } from '../data/treinoData';
+import { getDietaData, TODAY_DATE, WATER_STORAGE_KEY, getMacroGoals } from '../data/treinoData';
 import { useAuth } from '../context/AuthContext';
 import { sendNotification } from '../lib/notifications';
 
@@ -25,7 +25,7 @@ export default function ReminderScheduler() {
       const now = new Date();
       const current = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 
-      dietaData.forEach(meal => {
+      getDietaData(user).forEach(meal => {
         if (meal.horario !== current) return;
         if (notifiedRef.current.has(meal.nome)) return;
         if (localStorage.getItem(mealKey(meal)) === 'true') return;
@@ -33,7 +33,7 @@ export default function ReminderScheduler() {
         sendNotification(`⏰ ${meal.nome}`, {
           body: meal.descricao.replace(/<[^>]+>/g, ''),
           tag: mealKey(meal),
-        });
+        }).catch(err => console.error('sendNotification:', err));
         notifiedRef.current.add(meal.nome);
       });
 
@@ -45,7 +45,7 @@ export default function ReminderScheduler() {
           sendNotification('💧 Hora de beber água', {
             body: `Você bebeu ${(currentMl / 1000).toFixed(1)}L de ${(goalMl / 1000).toFixed(1)}L hoje.`,
             tag: `water-${TODAY_DATE}-${current}`,
-          });
+          }).catch(err => console.error('sendNotification:', err));
         }
       }
     }

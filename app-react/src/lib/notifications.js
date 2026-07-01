@@ -9,11 +9,19 @@ export async function requestNotificationPermission() {
   return Notification.requestPermission();
 }
 
-export function sendNotification(title, options) {
-  if (!isNotificationSupported() || Notification.permission !== 'granted') return;
-  try {
-    new Notification(title, options);
-  } catch (err) {
-    console.error('sendNotification:', err);
+export async function sendNotification(title, options) {
+  if (!isNotificationSupported()) throw new Error('Notificações não suportadas neste navegador');
+  if (Notification.permission !== 'granted') throw new Error(`Permissão de notificação: ${Notification.permission}`);
+
+  // Pages controlled by a service worker (this app is a PWA) can't use
+  // `new Notification()` in Chrome/Edge — it throws "Illegal constructor".
+  // Route through the SW registration instead when one is active.
+  if ('serviceWorker' in navigator) {
+    const reg = await navigator.serviceWorker.getRegistration();
+    if (reg) {
+      await reg.showNotification(title, options);
+      return;
+    }
   }
+  new Notification(title, options);
 }
