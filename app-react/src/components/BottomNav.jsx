@@ -1,0 +1,50 @@
+const ITEMS = [
+  { key: 'treino', label: 'Treino' },
+  { key: 'dieta', label: 'Dieta' },
+  { key: 'dash', label: 'Evolução' },
+  { key: 'perfil', label: 'Perfil' },
+];
+
+const ICONS = {
+  treino: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="10" width="4" height="4" rx="1" /><rect x="18" y="10" width="4" height="4" rx="1" />
+      <rect x="6" y="7" width="2" height="10" rx="1" /><rect x="16" y="7" width="2" height="10" rx="1" />
+      <line x1="8" y1="12" x2="16" y2="12" />
+    </svg>
+  ),
+  dieta: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 2v7c0 1.1.9 2 2 2s2-.9 2-2V2" /><line x1="5" y1="11" x2="5" y2="22" />
+      <path d="M21 2v20" /><path d="M21 7H15a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h6" />
+    </svg>
+  ),
+  dash: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="18" y1="20" x2="18" y2="10" /><line x1="12" y1="20" x2="12" y2="4" />
+      <line x1="6" y1="20" x2="6" y2="14" /><line x1="2" y1="20" x2="22" y2="20" />
+    </svg>
+  ),
+  perfil: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="8" r="4" /><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
+    </svg>
+  ),
+};
+
+export default function BottomNav({ active, onChange }) {
+  return (
+    <nav className="bottom-nav">
+      {ITEMS.map(item => (
+        <button
+          key={item.key}
+          className={`nav-item${active === item.key ? ' active' : ''}`}
+          onClick={() => onChange(item.key)}
+        >
+          <span className="nav-item__icon">{ICONS[item.key]}</span>
+          <span>{item.label}</span>
+        </button>
+      ))}
+    </nav>
+  );
+}
