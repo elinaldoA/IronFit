@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ironfit-v3';
+const CACHE_NAME = 'ironfit-v4';
 const urlsToCache = [
   './',
   './index.html',
@@ -37,15 +37,24 @@ self.addEventListener('activate', event => {
   );
 });
 
+// Network-first: sempre busca a versão mais recente quando online,
+// e só recorre ao cache (última versão salva) quando offline —
+// assim atualizações de app.js/index.html/style.css chegam sem exigir
+// reinstalação do app.
 self.addEventListener('fetch', event => {
+  if (event.request.method !== 'GET') return;
+
   event.respondWith(
-    caches.match(event.request)
+    fetch(event.request)
       .then(response => {
-        return response || fetch(event.request).catch(() => {
-          if (event.request.mode === 'navigate') {
-            return caches.match('./index.html');
-          }
-        });
+        const copy = response.clone();
+        caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
+        return response;
       })
+      .catch(() =>
+        caches.match(event.request).then(cached =>
+          cached || (event.request.mode === 'navigate' ? caches.match('./index.html') : undefined)
+        )
+      )
   );
 });
