@@ -7,7 +7,7 @@ import { TODAY_DATE } from '../data/treinoData';
 import { fetchWeightLogs, upsertWeightLog } from '../lib/weightLog';
 import { saveAvatar, fetchAvatar } from '../lib/avatar';
 import { DEFAULT_MACROS, DEFAULT_WEEKLY_GOAL } from '../data/treinoData';
-import { isNotificationSupported, sendNotification } from '../lib/notifications';
+import { isNotificationSupported } from '../lib/notifications';
 import { useReminders } from '../hooks/useReminders';
 import LineChart from '../components/LineChart';
 
@@ -364,23 +364,6 @@ export default function PerfilPage({ active }) {
         </div>
         {!isNotificationSupported() && (
           <p className="dash-empty">Notificações não são suportadas neste navegador.</p>
-        )}
-        <button
-          type="button" className="btn btn--outline btn--full"
-          disabled={!remindersEnabled}
-          onClick={async () => {
-            try {
-              await sendNotification('🔔 Notificação de teste', { body: 'Se você está vendo isso, os lembretes estão funcionando!' });
-              toast('✅ Notificação enviada — se não apareceu, confira as notificações do sistema/navegador');
-            } catch (err) {
-              toast(`⚠️ Falha ao enviar: ${err.message}`);
-            }
-          }}
-        >
-          Enviar notificação de teste
-        </button>
-        {!remindersEnabled && (
-          <p className="dash-empty">Ative os lembretes acima para poder testar.</p>
         )}
       </div>
 
