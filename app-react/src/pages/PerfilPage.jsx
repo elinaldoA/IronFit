@@ -12,14 +12,9 @@ import { saveAvatar } from '../lib/avatar';
 import { DEFAULT_MACROS, DEFAULT_WEEKLY_GOAL } from '../data/treinoData';
 import { isNotificationSupported, sendNotification } from '../lib/notifications';
 import { useReminders } from '../hooks/useReminders';
-import { countFoodLogs } from '../lib/foodLog';
-import { countPhotos } from '../lib/progressPhotos';
-import { fetchRecipes } from '../lib/recipes';
-import { BADGES, syncAchievements } from '../lib/achievements';
 import { exportSummaryCSV, exportBackupJSON, printReport } from '../lib/exportData';
 import { shareProgress } from '../lib/shareCard';
 import LineChart from '../components/LineChart';
-import ProgressPhotos from '../components/ProgressPhotos';
 
 function imcInfo(peso, altura) {
   if (!peso || !altura || peso < 30 || altura < 100) return null;
@@ -68,7 +63,6 @@ export default function PerfilPage({ active }) {
   const [trainingTotals, setTrainingTotals] = useState({ volumeKg: 0, hours: 0 });
   const [volumeSeries, setVolumeSeries] = useState([]);
   const [weightLogs, setWeightLogs] = useState([]);
-  const [unlockedBadges, setUnlockedBadges] = useState(new Set());
   const { avatarData, setAvatarData } = useAvatar();
   const [remindersEnabled, toggleReminders] = useReminders(toast, user);
 
@@ -178,26 +172,6 @@ export default function PerfilPage({ active }) {
           setVolumeSeries([]);
         }
         setTrainingTotals({ volumeKg: Math.round(volumeKg), hours: Math.round((totalSeconds / 3600) * 10) / 10 });
-
-        try {
-          const [totalFoodLogs, totalPhotos, recipes] = await Promise.all([
-            countFoodLogs(user.id),
-            countPhotos(user.id),
-            fetchRecipes(user.id),
-          ]);
-          const { unlockedIds, newlyEarned } = await syncAchievements(user.id, {
-            streakDays: streak,
-            totalTreinos: total,
-            totalFoodLogs,
-            totalPhotos,
-            totalRecipes: recipes.length,
-            totalWeightLogs: weights.length,
-          });
-          setUnlockedBadges(unlockedIds);
-          newlyEarned.forEach(b => toast(`🏅 Conquista desbloqueada: ${b.title}`));
-        } catch (err) {
-          console.error('syncAchievements:', err);
-        }
       } catch (err) {
         console.error('loadProfileStats:', err);
         toast('⚠️ Erro ao carregar estatísticas');
@@ -326,22 +300,6 @@ export default function PerfilPage({ active }) {
       <button type="button" className="btn btn--outline btn--full" disabled={sharing} onClick={handleShare}>
         {sharing ? 'Gerando imagem…' : '📤 Compartilhar progresso'}
       </button>
-
-      <div className="profile-section">
-        <div className="profile-section__title">Conquistas</div>
-        <div className="badge-grid">
-          {BADGES.map(b => {
-            const unlocked = unlockedBadges.has(b.id);
-            return (
-              <div key={b.id} className={`badge-card${unlocked ? ' badge-card--unlocked' : ''}`} title={b.desc}>
-                <span className="badge-card__emoji">{b.emoji}</span>
-                <span className="badge-card__title">{b.title}</span>
-                {!unlocked && <span className="badge-card__desc">{b.desc}</span>}
-              </div>
-            );
-          })}
-        </div>
-      </div>
 
       <div className="section-group">
         <div className="section-group__label">Meus dados</div>
@@ -501,11 +459,6 @@ export default function PerfilPage({ active }) {
               emptyMsg="Nenhum peso registrado ainda. Salve seus dados corporais acima para começar."
             />
           </div>
-        </div>
-
-        <div className="profile-section">
-          <div className="profile-section__title">Fotos de progresso</div>
-          <ProgressPhotos />
         </div>
       </div>
 

@@ -4,12 +4,17 @@ import { TODAY_NAME, TODAY_DATE, getMuscleGroupsForDay, getWeeklyGoal } from '..
 import { useAuth } from '../context/AuthContext';
 import { useWorkout } from '../context/WorkoutContext';
 import { useToast } from '../context/ToastContext';
-import { fmtDate, parseLocalDate, toDateStr, getWeekStart } from '../lib/utils';
+import { fmtDate, parseLocalDate, toDateStr, getWeekStart, calcStreak } from '../lib/utils';
 import { estimateOneRepMax } from '../lib/records';
 import { fetchWaterLogsRange } from '../lib/dietaLog';
-import { fetchFoodLogsRange } from '../lib/foodLog';
+import { fetchFoodLogsRange, countFoodLogs } from '../lib/foodLog';
+import { countPhotos } from '../lib/progressPhotos';
+import { fetchRecipes } from '../lib/recipes';
+import { fetchWeightLogs } from '../lib/weightLog';
+import { BADGES, syncAchievements } from '../lib/achievements';
 import BodyAvatar from '../components/BodyAvatar';
 import LineChart from '../components/LineChart';
+import ProgressPhotos from '../components/ProgressPhotos';
 
 function Skeleton({ height = 120 }) {
   return <div className="skeleton" style={{ height }} />;
@@ -188,6 +193,7 @@ export default function DashPage({ active }) {
   const [selectedExercise, setSelectedExercise] = useState('');
   const [loading, setLoading] = useState(false);
   const [loadingPR, setLoadingPR] = useState(false);
+  const [unlockedBadges, setUnlockedBadges] = useState(new Set());
 
   const weeklyGoal = getWeeklyGoal(user);
   const day = activePlanDays.find(d => d.dia === TODAY_NAME);
@@ -248,23 +254,45 @@ export default function DashPage({ active }) {
       try {
         const { data: allWorkouts, error: awErr } = await db
           .from('workouts')
-          .select('id, workout_date')
+          .select('id, workout_date, completed')
           .eq('user_id', user.id);
         if (awErr) throw awErr;
 
         const ids = (allWorkouts || []).map(w => w.id);
-        if (!ids.length) { setAllTimeLogs([]); return; }
+        if (ids.length) {
+          const { data: sets, error: sErr } = await db
+            .from('exercise_sets')
+            .select('exercise_name, carga, reps, workout_id')
+            .in('workout_id', ids)
+            .eq('completed', true)
+            .not('carga', 'is', null);
+          if (sErr) throw sErr;
 
-        const { data: sets, error: sErr } = await db
-          .from('exercise_sets')
-          .select('exercise_name, carga, reps, workout_id')
-          .in('workout_id', ids)
-          .eq('completed', true)
-          .not('carga', 'is', null);
-        if (sErr) throw sErr;
+          const dateMap = Object.fromEntries(allWorkouts.map(w => [w.id, w.workout_date]));
+          setAllTimeLogs((sets || []).map(s => ({ ...s, workout_date: dateMap[s.workout_id] })));
+        } else {
+          setAllTimeLogs([]);
+        }
 
-        const dateMap = Object.fromEntries(allWorkouts.map(w => [w.id, w.workout_date]));
-        setAllTimeLogs((sets || []).map(s => ({ ...s, workout_date: dateMap[s.workout_id] })));
+        const completedWorkouts = (allWorkouts || []).filter(w => w.completed);
+        const streakDays = calcStreak(completedWorkouts.map(w => w.workout_date));
+
+        const [totalFoodLogs, totalPhotos, recipes, weights] = await Promise.all([
+          countFoodLogs(user.id),
+          countPhotos(user.id),
+          fetchRecipes(user.id),
+          fetchWeightLogs(user.id),
+        ]);
+        const { unlockedIds, newlyEarned } = await syncAchievements(user.id, {
+          streakDays,
+          totalTreinos: completedWorkouts.length,
+          totalFoodLogs,
+          totalPhotos,
+          totalRecipes: recipes.length,
+          totalWeightLogs: weights.length,
+        });
+        setUnlockedBadges(unlockedIds);
+        newlyEarned.forEach(b => toast(`🏅 Conquista desbloqueada: ${b.title}`));
       } catch (err) {
         console.error('loadAllTimeLogs:', err);
       } finally {
@@ -425,6 +453,31 @@ export default function DashPage({ active }) {
               />
             )}
           </div>
+        </div>
+      </div>
+
+      <div className="section-group">
+        <div className="section-group__label">Conquistas</div>
+        <div className="dash-card">
+          <div className="badge-grid">
+            {BADGES.map(b => {
+              const unlocked = unlockedBadges.has(b.id);
+              return (
+                <div key={b.id} className={`badge-card${unlocked ? ' badge-card--unlocked' : ''}`} title={b.desc}>
+                  <span className="badge-card__emoji">{b.emoji}</span>
+                  <span className="badge-card__title">{b.title}</span>
+                  {!unlocked && <span className="badge-card__desc">{b.desc}</span>}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      <div className="section-group">
+        <div className="section-group__label">Fotos de progresso</div>
+        <div className="dash-card">
+          <ProgressPhotos />
         </div>
       </div>
     </section>
