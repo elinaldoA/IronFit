@@ -7,7 +7,7 @@ clientsClaim();
 cleanupOutdatedCaches();
 precacheAndRoute(self.__WB_MANIFEST);
 
-const APP_URL = '/meu-plano/';
+const APP_URL = '/IronFit/';
 
 self.addEventListener('push', (event) => {
   let data = {};

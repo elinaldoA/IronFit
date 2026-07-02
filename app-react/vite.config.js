@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
-  base: '/meu-plano/',
+  base: '/IronFit/',
   plugins: [
     react(),
     VitePWA({
@@ -19,8 +19,8 @@ export default defineConfig({
         name: 'IronFit - Treino e Dieta',
         short_name: 'IronFit',
         description: 'Seu plano de treino e dieta personalizado',
-        start_url: '/meu-plano/',
-        scope: '/meu-plano/',
+        start_url: '/IronFit/',
+        scope: '/IronFit/',
         display: 'standalone',
         background_color: '#0e0e12',
         theme_color: '#0e0e12',

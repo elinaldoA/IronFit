@@ -102,7 +102,7 @@ Deno.serve(async () => {
         try {
           await webpush.sendNotification(
             { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-            JSON.stringify({ title: payload.title, body: payload.body, tag: payload.tag, url: '/meu-plano/' })
+            JSON.stringify({ title: payload.title, body: payload.body, tag: payload.tag, url: '/IronFit/' })
           );
           sent++;
         } catch (err) {
