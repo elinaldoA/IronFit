@@ -9,6 +9,7 @@ import { playWorkoutFinishedSound } from '../lib/sound';
 import { checkForNewPR } from '../lib/records';
 import RestTimer from '../components/RestTimer';
 import PlanEditorModal from '../components/PlanEditorModal';
+import WorkoutSummaryModal from '../components/WorkoutSummaryModal';
 import { useWorkoutTimer } from '../hooks/useWorkoutTimer';
 
 function calcDayTotalCarga(day) {
@@ -23,6 +24,30 @@ function calcDayTotalCarga(day) {
     }
   });
   return total;
+}
+
+function gatherExerciseDetails(day) {
+  return day.exercicios
+    .map(ex => {
+      const count = parseInt(ex.series, 10) || 0;
+      const sets = Array.from({ length: count }, (_, i) => {
+        const n = i + 1;
+        return {
+          n,
+          done: localStorage.getItem(`set_${ex.nome}_${n}_done`) === 'true',
+          carga: localStorage.getItem(`set_${ex.nome}_${n}_carga`) || null,
+          reps: localStorage.getItem(`set_${ex.nome}_${n}_reps`) || null,
+        };
+      });
+      return { nome: ex.nome, sets };
+    })
+    .filter(ex => ex.sets.length > 0);
+}
+
+function countSets(exercises) {
+  let done = 0, total = 0;
+  exercises.forEach(ex => ex.sets.forEach(s => { total++; if (s.done) done++; }));
+  return { done, total };
 }
 
 function SetRow({ ex, n, day, bump, onRestStart }) {
@@ -122,9 +147,9 @@ function allSetsDone(ex, setCount) {
   return true;
 }
 
-function DayCard({ day, isToday, bump, onRestStart }) {
+function DayCard({ day, isToday, bump, onRestStart, onFinish }) {
   const { user } = useAuth();
-  const { saveWorkoutStatus, saveSetState, saveWorkoutTimer } = useWorkout();
+  const { saveWorkoutStatus, saveSetState, saveWorkoutTimer, activePlanDays } = useWorkout();
   const toast = useToast();
   const [open, setOpen] = useState(isToday);
   const [checked, setChecked] = useState(() => localStorage.getItem(`treino_${day.dia}`) === 'true');
@@ -156,6 +181,15 @@ function DayCard({ day, isToday, bump, onRestStart }) {
     if (!checked) markDone(true);
     if (user) saveWorkoutTimer(day.dia, { startedAt, finishedAt, durationSeconds: Math.round(accumulatedMs / 1000) });
     bump();
+
+    const exercises = gatherExerciseDetails(day);
+    const { done: totalSetsDone, total: totalPlannedSets } = countSets(exercises);
+    const workDays = activePlanDays.filter(d => d.dia !== 'Sábado' && d.dia !== 'Domingo');
+    const weekDone = workDays.filter(d => localStorage.getItem(`treino_${d.dia}`) === 'true').length;
+    onFinish({
+      day, durationMs: accumulatedMs, totalCarga: calcDayTotalCarga(day),
+      exercises, totalSetsDone, totalPlannedSets, weekDone, weekTotal: workDays.length,
+    });
   }
 
   async function toggleAllSets(ex, setCount) {
@@ -305,6 +339,7 @@ export default function TreinoPage() {
   const [restSession, setRestSession] = useState(null);
   const restKey = useRef(0);
   const [showPlanEditor, setShowPlanEditor] = useState(false);
+  const [summary, setSummary] = useState(null);
 
   function handleRestStart(label, seconds) {
     restKey.current += 1;
@@ -356,7 +391,7 @@ export default function TreinoPage() {
       <div id="treinoContainer">
         <div className={`accordion${loading ? ' accordion--loading' : ''}`} key={dataVersion}>
           {activePlanDays.map(day => (
-            <DayCard key={day.dia} day={day} isToday={day.dia === TODAY_NAME} bump={bump} onRestStart={handleRestStart} />
+            <DayCard key={day.dia} day={day} isToday={day.dia === TODAY_NAME} bump={bump} onRestStart={handleRestStart} onFinish={setSummary} />
           ))}
         </div>
       </div>
@@ -368,6 +403,9 @@ export default function TreinoPage() {
       )}
       {showPlanEditor && (
         <PlanEditorModal onClose={() => setShowPlanEditor(false)} />
+      )}
+      {summary && (
+        <WorkoutSummaryModal summary={summary} onClose={() => setSummary(null)} />
       )}
     </section>
   );
