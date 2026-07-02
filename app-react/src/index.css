@@ -540,6 +540,55 @@ button, input { font-family: inherit; }
 .day-card__body.open { display: block; }
 
 /* ============================================================
+   CRONÔMETRO DO TREINO
+============================================================ */
+.timer-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: var(--primary);
+  color: #09090b;
+  font-size: 0.62rem;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: var(--r-full);
+  font-variant-numeric: tabular-nums;
+}
+.timer-badge--paused { background: var(--warning); }
+
+.session-timer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  background: var(--surface-2);
+  border: 1px solid var(--border-2);
+  border-radius: var(--r-lg);
+  padding: 10px 12px;
+  margin-top: 10px;
+}
+
+.session-timer__clock {
+  font-size: 1.15rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+.session-timer__done {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.session-timer__actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* ============================================================
    TOTAL DE CARGA DO DIA
 ============================================================ */
 .day-card__total {
@@ -828,15 +877,21 @@ button, input { font-family: inherit; }
   opacity: 1;
 }
 
+/* ── Body lock enquanto um modal fullscreen está aberto ── */
+body.modal-open { overflow: hidden; }
+
 /* ── Timer de Descanso (modal) ── */
 .rest-modal {
   position: fixed;
   inset: 0;
+  width: 100vw;
+  height: 100dvh;
   z-index: 998;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px;
+  padding: 20px;
+  overflow: hidden;
 }
 
 .rest-modal__backdrop {
@@ -859,6 +914,7 @@ button, input { font-family: inherit; }
   padding: 28px 24px;
   width: 100%;
   max-width: 320px;
+  max-height: 100%;
 }
 
 .rest-modal__label {
@@ -886,8 +942,8 @@ button, input { font-family: inherit; }
 
 .rest-modal__ring {
   position: relative;
-  width: 200px;
-  height: 200px;
+  width: min(200px, 50vh, 55vw);
+  height: min(200px, 50vh, 55vw);
 }
 
 .rest-modal__svg {
@@ -920,7 +976,7 @@ button, input { font-family: inherit; }
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 2.4rem;
+  font-size: clamp(1.6rem, 8vh, 2.4rem);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: var(--text);
@@ -1392,6 +1448,14 @@ button, input { font-family: inherit; }
   font-weight: 700;
   font-size: 0.88rem;
   color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-handle {
+  font-size: 0.72rem;
+  color: var(--text-dim);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

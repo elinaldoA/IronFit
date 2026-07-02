@@ -35,6 +35,21 @@ export function getWeekStart(weeksAgo = 0) {
   return toDateStr(new Date(now.getFullYear(), now.getMonth(), diff));
 }
 
+// Nome exibido para o usuário: apelido, senão nome, senão o e-mail.
+export function getDisplayName(user) {
+  const md = user?.user_metadata || {};
+  return md.apelido?.trim() || md.nome?.trim() || user?.email || '';
+}
+
+export function formatDuration(ms) {
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
 export function parseRestSeconds(descanso) {
   if (!descanso) return 0;
   const min = descanso.match(/(\d+)\s*min/);

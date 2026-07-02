@@ -1,21 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-
-function beep() {
-  try {
-    const Ctx = window.AudioContext || window.webkitAudioContext;
-    const ctx = new Ctx();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.value = 880;
-    gain.gain.setValueAtTime(0.15, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.4);
-    osc.connect(gain).connect(ctx.destination);
-    osc.start();
-    osc.stop(ctx.currentTime + 0.4);
-  } catch { /* som indisponível */ }
-  if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
-}
+import { createPortal } from 'react-dom';
+import { playRestDoneSound } from '../lib/sound';
 
 const RADIUS = 90;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
@@ -37,7 +22,7 @@ export default function RestTimer({ session, onClose }) {
       setLeft(l => {
         if (l <= 1) {
           clearInterval(id);
-          if (!doneRef.current) { doneRef.current = true; beep(); }
+          if (!doneRef.current) { doneRef.current = true; playRestDoneSound(); }
           return 0;
         }
         return l - 1;
@@ -46,13 +31,28 @@ export default function RestTimer({ session, onClose }) {
     return () => clearInterval(id);
   }, [paused, session.key]);
 
+  // Prevent the page behind the modal from scrolling while it's open.
+  useEffect(() => {
+    document.body.classList.add('modal-open');
+    return () => document.body.classList.remove('modal-open');
+  }, []);
+
   const finished = left <= 0;
+
+  // Auto-close once the rest is over, giving a beat for the beep/checkmark to register.
+  useEffect(() => {
+    if (!finished) return;
+    const id = setTimeout(onClose, 1200);
+    return () => clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [finished, session.key]);
+
   const mm = String(Math.floor(left / 60)).padStart(2, '0');
   const ss = String(left % 60).padStart(2, '0');
   const pct = session.seconds ? (session.seconds - left) / session.seconds : 1;
   const dashoffset = CIRCUMFERENCE * (1 - pct);
 
-  return (
+  return createPortal(
     <div className="rest-modal" role="dialog" aria-modal="true">
       <div className="rest-modal__backdrop" />
       <div className="rest-modal__panel">
@@ -91,9 +91,10 @@ export default function RestTimer({ session, onClose }) {
           disabled={!finished}
           onClick={onClose}
         >
-          {finished ? 'Continuar treino' : 'Aguarde o descanso terminar'}
+          {finished ? 'Continuando…' : 'Aguarde o descanso terminar'}
         </button>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

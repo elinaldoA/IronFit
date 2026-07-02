@@ -3,9 +3,11 @@ import { treinoData, TODAY_NAME } from '../data/treinoData';
 import { useAuth } from '../context/AuthContext';
 import { useWorkout } from '../context/WorkoutContext';
 import { useToast } from '../context/ToastContext';
-import { parseRestSeconds, getDateForWeekday } from '../lib/utils';
+import { parseRestSeconds, getDateForWeekday, formatDuration } from '../lib/utils';
 import { db } from '../lib/supabase';
+import { playWorkoutFinishedSound } from '../lib/sound';
 import RestTimer from '../components/RestTimer';
+import { useWorkoutTimer } from '../hooks/useWorkoutTimer';
 
 function calcDayTotalCarga(day) {
   let total = 0;
@@ -83,11 +85,39 @@ function allSetsDone(ex, setCount) {
 
 function DayCard({ day, isToday, bump, onRestStart }) {
   const { user } = useAuth();
-  const { saveWorkoutStatus, saveSetState } = useWorkout();
+  const { saveWorkoutStatus, saveSetState, saveWorkoutTimer } = useWorkout();
   const toast = useToast();
   const [open, setOpen] = useState(isToday);
   const [checked, setChecked] = useState(() => localStorage.getItem(`treino_${day.dia}`) === 'true');
   const [markVersions, setMarkVersions] = useState({});
+  const timer = useWorkoutTimer(day.dia);
+
+  async function markDone(next) {
+    setChecked(next);
+    localStorage.setItem(`treino_${day.dia}`, next);
+    if (user) await saveWorkoutStatus(day.dia, next);
+  }
+
+  function handleResetTimer() {
+    timer.reset();
+    if (user) saveWorkoutTimer(day.dia, { startedAt: null, finishedAt: null, durationSeconds: null });
+  }
+
+  function handleStartWorkout() {
+    const startedAt = timer.start();
+    if (user) saveWorkoutTimer(day.dia, { startedAt, finishedAt: null, durationSeconds: null });
+  }
+
+  function handleFinishWorkout() {
+    const result = timer.finish();
+    if (!result) return;
+    const { accumulatedMs, startedAt, finishedAt } = result;
+    playWorkoutFinishedSound();
+    toast(`🏁 Treino finalizado em ${formatDuration(accumulatedMs)}!`);
+    if (!checked) markDone(true);
+    if (user) saveWorkoutTimer(day.dia, { startedAt, finishedAt, durationSeconds: Math.round(accumulatedMs / 1000) });
+    bump();
+  }
 
   async function toggleAllSets(ex, setCount) {
     const next = !allSetsDone(ex, setCount);
@@ -131,12 +161,44 @@ function DayCard({ day, isToday, bump, onRestStart }) {
         </div>
         <div className="day-card__right">
           {isToday && <span className="today-badge">Hoje</span>}
+          {(timer.status === 'running' || timer.status === 'paused') && (
+            <span className={`timer-badge${timer.status === 'paused' ? ' timer-badge--paused' : ''}`}>
+              {timer.status === 'paused' ? '⏸' : '⏱'} {formatDuration(timer.elapsedMs)}
+            </span>
+          )}
           <span className="day-card__count">{day.exercicios.length} exerc.</span>
           <span className="chevron">▼</span>
         </div>
       </div>
 
       <div className={`day-card__body${open ? ' open' : ''}`}>
+        <div className="session-timer">
+          <div className="session-timer__clock">
+            {formatDuration(timer.elapsedMs)}
+            {timer.status === 'finished' && <span className="session-timer__done"> · concluído</span>}
+          </div>
+          <div className="session-timer__actions">
+            {timer.status === 'idle' && (
+              <button type="button" className="btn btn--primary btn--sm" onClick={handleStartWorkout}>▶ Iniciar treino</button>
+            )}
+            {timer.status === 'running' && (
+              <>
+                <button type="button" className="btn btn--outline btn--sm" onClick={timer.pause}>⏸ Pausar</button>
+                <button type="button" className="btn btn--primary btn--sm" onClick={handleFinishWorkout}>🏁 Finalizar</button>
+              </>
+            )}
+            {timer.status === 'paused' && (
+              <>
+                <button type="button" className="btn btn--outline btn--sm" onClick={timer.resume}>▶ Continuar</button>
+                <button type="button" className="btn btn--primary btn--sm" onClick={handleFinishWorkout}>🏁 Finalizar</button>
+              </>
+            )}
+            {timer.status === 'finished' && (
+              <button type="button" className="btn btn--ghost btn--sm" onClick={handleResetTimer}>↺ Refazer treino</button>
+            )}
+          </div>
+        </div>
+
         <div className="day-card__total">
           Carga total do treino: {calcDayTotalCarga(day).toLocaleString('pt-BR')} kg
         </div>

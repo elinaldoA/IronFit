@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { db } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { getWeekStart, calcStreak, fmtDate } from '../lib/utils';
+import { getWeekStart, calcStreak, fmtDate, getDisplayName } from '../lib/utils';
 import { TODAY_DATE } from '../data/treinoData';
 import { fetchWeightLogs, upsertWeightLog } from '../lib/weightLog';
 import { saveAvatar, fetchAvatar } from '../lib/avatar';
@@ -40,6 +40,9 @@ export default function PerfilPage({ active }) {
   const toast = useToast();
 
   const md = user?.user_metadata || {};
+  const [nome, setNome] = useState(md.nome || localStorage.getItem('profile_nome') || '');
+  const [sobrenome, setSobrenome] = useState(md.sobrenome || localStorage.getItem('profile_sobrenome') || '');
+  const [apelido, setApelido] = useState(md.apelido || localStorage.getItem('profile_apelido') || '');
   const [peso, setPeso] = useState(md.peso || localStorage.getItem('profile_peso') || '');
   const [altura, setAltura] = useState(md.altura || localStorage.getItem('profile_altura') || '');
   const [meta, setMeta] = useState(md.meta || localStorage.getItem('profile_meta') || 'massa');
@@ -122,6 +125,14 @@ export default function PerfilPage({ active }) {
     loadAvatar();
   }, [active, user, toast]);
 
+  async function handleSavePersonal() {
+    localStorage.setItem('profile_nome', nome);
+    localStorage.setItem('profile_sobrenome', sobrenome);
+    localStorage.setItem('profile_apelido', apelido);
+    await updateProfile({ nome, sobrenome, apelido });
+    toast('✅ Dados pessoais salvos!');
+  }
+
   async function handleSave() {
     localStorage.setItem('profile_peso', peso);
     localStorage.setItem('profile_altura', altura);
@@ -201,7 +212,10 @@ export default function PerfilPage({ active }) {
           <input type="file" accept="image/*" hidden disabled={uploadingAvatar} onChange={handleAvatarChange} />
         </label>
         <div className="profile-hero__info">
-          <div className="profile-email">{user?.email || '–'}</div>
+          <div className="profile-email">{getDisplayName(user) || '–'}</div>
+          {user?.email && user.email !== getDisplayName(user) && (
+            <div className="profile-handle">{user.email}</div>
+          )}
           <div className="profile-since">
             {since ? 'Membro desde ' + since.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }) : '–'}
           </div>
@@ -223,6 +237,34 @@ export default function PerfilPage({ active }) {
           <span className="stat-card__value">{stats.total}</span>
           <span className="stat-card__label">Total treinos</span>
         </div>
+      </div>
+
+      <div className="profile-section">
+        <div className="profile-section__title">Dados pessoais</div>
+        <div className="profile-section__fields">
+          <div className="profile-field">
+            <label className="profile-field__label" htmlFor="profileNome">Nome</label>
+            <input
+              type="text" id="profileNome" className="input input--sm" placeholder="Ex: João"
+              value={nome} onChange={e => setNome(e.target.value)}
+            />
+          </div>
+          <div className="profile-field">
+            <label className="profile-field__label" htmlFor="profileSobrenome">Sobrenome</label>
+            <input
+              type="text" id="profileSobrenome" className="input input--sm" placeholder="Ex: Silva"
+              value={sobrenome} onChange={e => setSobrenome(e.target.value)}
+            />
+          </div>
+        </div>
+        <div className="profile-field">
+          <label className="profile-field__label" htmlFor="profileApelido">Apelido</label>
+          <input
+            type="text" id="profileApelido" className="input input--sm" placeholder="Como prefere ser chamado"
+            value={apelido} onChange={e => setApelido(e.target.value)}
+          />
+        </div>
+        <button className="btn btn--primary btn--full" onClick={handleSavePersonal}>Salvar dados pessoais</button>
       </div>
 
       <div className="profile-section">

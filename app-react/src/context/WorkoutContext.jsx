@@ -56,7 +56,7 @@ export function WorkoutProvider({ children }) {
 
         const { data: w, error: wErr } = await db
           .from('workouts')
-          .select('completed')
+          .select('completed, started_at, finished_at, duration_seconds')
           .eq('id', wId)
           .single();
         if (wErr) throw wErr;
@@ -67,17 +67,26 @@ export function WorkoutProvider({ children }) {
           .eq('workout_id', wId);
         if (sErr) throw sErr;
 
-        return { dayName: day.dia, wId, completed: w.completed, sets };
+        return { dayName: day.dia, wId, completed: w.completed, sets, timer: w };
       }));
 
       const ids = {};
-      entries.forEach(({ dayName, wId, completed, sets }) => {
+      entries.forEach(({ dayName, wId, completed, sets, timer }) => {
         ids[dayName] = wId;
         localStorage.setItem(`treino_${dayName}`, completed);
         sets.forEach(s => {
           localStorage.setItem(`set_${s.exercise_name}_${s.set_number}_carga`, s.carga ?? '');
           localStorage.setItem(`set_${s.exercise_name}_${s.set_number}_done`, s.completed);
         });
+        if (timer.duration_seconds != null) {
+          localStorage.setItem(`treino_${dayName}_timer`, JSON.stringify({
+            status: 'finished',
+            accumulatedMs: timer.duration_seconds * 1000,
+            runningSince: null,
+            startedAt: timer.started_at ? new Date(timer.started_at).getTime() : null,
+            finishedAt: timer.finished_at ? new Date(timer.finished_at).getTime() : null,
+          }));
+        }
       });
 
       setWorkoutIds(ids);
@@ -108,6 +117,22 @@ export function WorkoutProvider({ children }) {
     }
   }
 
+  async function saveWorkoutTimer(dayName, { startedAt, finishedAt, durationSeconds }) {
+    if (!user) return;
+    try {
+      const wId = workoutIds[dayName] || await ensureWorkoutId(user.id, dayName);
+      if (!workoutIds[dayName]) setWorkoutIds(ids => ({ ...ids, [dayName]: wId }));
+      const { error } = await db.from('workouts').update({
+        started_at: startedAt ? new Date(startedAt).toISOString() : null,
+        finished_at: finishedAt ? new Date(finishedAt).toISOString() : null,
+        duration_seconds: durationSeconds ?? null,
+      }).eq('id', wId);
+      if (error) throw error;
+    } catch (err) {
+      console.error('saveWorkoutTimer:', err);
+    }
+  }
+
   async function saveSetState(dayName, exerciseName, setNumber, patch) {
     if (!user) return;
     try {
@@ -131,7 +156,7 @@ export function WorkoutProvider({ children }) {
   }
 
   return (
-    <WorkoutContext.Provider value={{ syncStatus, dataVersion, saveWorkoutStatus, saveSetState, syncNow }}>
+    <WorkoutContext.Provider value={{ syncStatus, dataVersion, saveWorkoutStatus, saveSetState, saveWorkoutTimer, syncNow }}>
       {children}
     </WorkoutContext.Provider>
   );
