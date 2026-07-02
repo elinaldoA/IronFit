@@ -1,9 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { db } from '../lib/supabase';
-import { treinoData, TODAY_NAME, TODAY_DATE, getMuscleGroupsForDay, getWeeklyGoal } from '../data/treinoData';
+import { TODAY_NAME, TODAY_DATE, getMuscleGroupsForDay, getWeeklyGoal } from '../data/treinoData';
 import { useAuth } from '../context/AuthContext';
+import { useWorkout } from '../context/WorkoutContext';
 import { useToast } from '../context/ToastContext';
 import { fmtDate, parseLocalDate, toDateStr, getWeekStart } from '../lib/utils';
+import { estimateOneRepMax } from '../lib/records';
+import { fetchWaterLogsRange } from '../lib/dietaLog';
+import { fetchFoodLogsRange } from '../lib/foodLog';
 import BodyAvatar from '../components/BodyAvatar';
 import LineChart from '../components/LineChart';
 
@@ -96,9 +100,12 @@ function PRList({ logs }) {
   logs.forEach(log => {
     const val = parseFloat(log.carga);
     if (isNaN(val)) return;
-    if (!prMap[log.exercise_name] || val > prMap[log.exercise_name].val) {
-      prMap[log.exercise_name] = { val, date: log.workout_date };
-    }
+    const oneRm = estimateOneRepMax(log.carga, log.reps);
+
+    const entry = prMap[log.exercise_name] || { val: -Infinity, date: null, oneRm: null };
+    if (val > entry.val) { entry.val = val; entry.date = log.workout_date; }
+    if (oneRm !== null && (entry.oneRm === null || oneRm > entry.oneRm)) entry.oneRm = oneRm;
+    prMap[log.exercise_name] = entry;
   });
 
   const sorted = Object.entries(prMap).sort((a, b) => b[1].val - a[1].val).slice(0, 12);
@@ -106,11 +113,11 @@ function PRList({ logs }) {
 
   return (
     <div id="dashPRList" className="pr-list">
-      {sorted.map(([name, { val, date }]) => (
+      {sorted.map(([name, { val, date, oneRm }]) => (
         <div className="pr-row" key={name}>
           <div className="pr-row__name">{name}</div>
           <div className="pr-row__right">
-            <span className="pr-row__val">{val}kg</span>
+            <span className="pr-row__val">{val}kg{oneRm != null && ` · 1RM ~${oneRm.toFixed(1)}kg`}</span>
             <span className="pr-row__date">{fmtDate(date)}</span>
           </div>
         </div>
@@ -171,16 +178,19 @@ function LoadHistory({ points }) {
 
 export default function DashPage({ active }) {
   const { user } = useAuth();
+  const { activePlanDays } = useWorkout();
   const toast = useToast();
   const [workouts, setWorkouts] = useState([]);
   const [logs, setLogs] = useState([]);
   const [allTimeLogs, setAllTimeLogs] = useState([]);
+  const [waterLogs, setWaterLogs] = useState([]);
+  const [foodLogs, setFoodLogs] = useState([]);
   const [selectedExercise, setSelectedExercise] = useState('');
   const [loading, setLoading] = useState(false);
   const [loadingPR, setLoadingPR] = useState(false);
 
   const weeklyGoal = getWeeklyGoal(user);
-  const day = treinoData.find(d => d.dia === TODAY_NAME);
+  const day = activePlanDays.find(d => d.dia === TODAY_NAME);
   const todayCompleted = workouts.find(w => w.workout_date === TODAY_DATE)?.completed ?? false;
   const activeGroups = day && todayCompleted ? getMuscleGroupsForDay(day) : new Set();
 
@@ -218,6 +228,13 @@ export default function DashPage({ active }) {
         } else {
           setLogs([]);
         }
+
+        const [water, food] = await Promise.all([
+          fetchWaterLogsRange(user.id, sinceStr),
+          fetchFoodLogsRange(user.id, sinceStr),
+        ]);
+        setWaterLogs(water);
+        setFoodLogs(food);
       } catch (err) {
         console.error('loadDashboard:', err);
         toast('⚠️ Erro ao carregar evolução');
@@ -240,7 +257,7 @@ export default function DashPage({ active }) {
 
         const { data: sets, error: sErr } = await db
           .from('exercise_sets')
-          .select('exercise_name, carga, workout_id')
+          .select('exercise_name, carga, reps, workout_id')
           .in('workout_id', ids)
           .eq('completed', true)
           .not('carga', 'is', null);
@@ -283,6 +300,22 @@ export default function DashPage({ active }) {
       .map(l => ({ value: parseFloat(l.carga), label: fmtDate(l.workout_date) }));
   }, [logs, selectedExercise]);
 
+  const waterPoints = useMemo(() => {
+    return waterLogs
+      .filter(w => Number.isFinite(w.amount_ml))
+      .map(w => ({ value: Math.round(w.amount_ml / 1000 * 10) / 10, label: fmtDate(w.log_date) }));
+  }, [waterLogs]);
+
+  const caloriePoints = useMemo(() => {
+    const totals = {};
+    foodLogs.forEach(f => {
+      const kcal = parseFloat(f.kcal);
+      if (!Number.isFinite(kcal)) return;
+      totals[f.log_date] = (totals[f.log_date] || 0) + kcal;
+    });
+    return Object.keys(totals).sort().map(date => ({ value: Math.round(totals[date]), label: fmtDate(date) }));
+  }, [foodLogs]);
+
   return (
     <section id="page-dash" className="page active">
       <div className="dash-card">
@@ -293,69 +326,106 @@ export default function DashPage({ active }) {
         <BodyAvatar activeGroups={activeGroups} />
       </div>
 
-      <div className="dash-card">
-        <div className="dash-card__title">Soma de cargas por treino</div>
-        <p className="dash-card__subtitle">Soma do peso de todas as séries concluídas em cada treino (não considera repetições)</p>
-        <div className="line-chart-wrap">
-          {loading ? <Skeleton height={130} /> : (
-            <LineChart
-              points={volumePoints}
-              valueSuffix="kg"
-              singleMsg={v => `1 treino registrado: ${v}kg — treine mais vezes para ver a evolução`}
-              emptyMsg="Nenhum volume registrado ainda. Marque séries como concluídas na aba Treino."
-            />
-          )}
-        </div>
-      </div>
+      <div className="section-group">
+        <div className="section-group__label">Treinos</div>
 
-      <div className="dash-card">
-        <div className="dash-card__title">Últimos 35 dias</div>
-        {loading ? <Skeleton height={140} /> : (
-          <>
-            <div className="heatmap-wrap">
-              <div className="heatmap-days">
-                <span>Seg</span><span>Ter</span><span>Qua</span>
-                <span>Qui</span><span>Sex</span><span>Sáb</span><span>Dom</span>
+        <div className="dash-card">
+          <div className="dash-card__title">Soma de cargas por treino</div>
+          <p className="dash-card__subtitle">Soma do peso de todas as séries concluídas em cada treino (não considera repetições)</p>
+          <div className="line-chart-wrap">
+            {loading ? <Skeleton height={130} /> : (
+              <LineChart
+                points={volumePoints}
+                valueSuffix="kg"
+                singleMsg={v => `1 treino registrado: ${v}kg — treine mais vezes para ver a evolução`}
+                emptyMsg="Nenhum volume registrado ainda. Marque séries como concluídas na aba Treino."
+              />
+            )}
+          </div>
+        </div>
+
+        <div className="dash-card">
+          <div className="dash-card__title">Últimos 35 dias</div>
+          {loading ? <Skeleton height={140} /> : (
+            <>
+              <div className="heatmap-wrap">
+                <div className="heatmap-days">
+                  <span>Seg</span><span>Ter</span><span>Qua</span>
+                  <span>Qui</span><span>Sex</span><span>Sáb</span><span>Dom</span>
+                </div>
+                <Heatmap workouts={workouts} />
               </div>
-              <Heatmap workouts={workouts} />
-            </div>
-            <div className="heatmap-legend">
-              <span className="heatmap-legend__dot heatmap-legend__dot--done" /><span>Concluído</span>
-              <span className="heatmap-legend__dot heatmap-legend__dot--miss" /><span>Não feito</span>
-              <span className="heatmap-legend__dot heatmap-legend__dot--none" /><span>Sem registro</span>
-            </div>
-          </>
-        )}
-      </div>
-
-      <div className="dash-card">
-        <div className="dash-card__title">Treinos concluídos por semana</div>
-        {loading ? <Skeleton height={110} /> : <WeeklyBars workouts={workouts} weeklyGoal={weeklyGoal} />}
-      </div>
-
-      <div className="dash-card">
-        <div className="dash-card__title">Evolução de carga</div>
-        <select className="input input--sm" value={selectedExercise} onChange={e => setSelectedExercise(e.target.value)}>
-          <option value="">Selecione um exercício</option>
-          {exercises.map(name => <option key={name} value={name}>{name}</option>)}
-        </select>
-        <div className="line-chart-wrap">
-          {loading ? <Skeleton height={130} /> : (
-            <LineChart
-              points={loadPoints}
-              valueSuffix="kg"
-              singleMsg={v => `1 registro: ${v}kg — treine mais vezes para ver a evolução`}
-              emptyMsg={selectedExercise ? 'Nenhum registro para este exercício' : 'Selecione um exercício com carga registrada'}
-            />
+              <div className="heatmap-legend">
+                <span className="heatmap-legend__dot heatmap-legend__dot--done" /><span>Concluído</span>
+                <span className="heatmap-legend__dot heatmap-legend__dot--miss" /><span>Não feito</span>
+                <span className="heatmap-legend__dot heatmap-legend__dot--none" /><span>Sem registro</span>
+              </div>
+            </>
           )}
         </div>
-        {!loading && selectedExercise && <WeekCompare logs={logs} exercise={selectedExercise} />}
-        {!loading && selectedExercise && <LoadHistory points={loadPoints} />}
+
+        <div className="dash-card">
+          <div className="dash-card__title">Treinos concluídos por semana</div>
+          {loading ? <Skeleton height={110} /> : <WeeklyBars workouts={workouts} weeklyGoal={weeklyGoal} />}
+        </div>
+
+        <div className="dash-card">
+          <div className="dash-card__title">Evolução de carga</div>
+          <select className="input input--sm" value={selectedExercise} onChange={e => setSelectedExercise(e.target.value)}>
+            <option value="">Selecione um exercício</option>
+            {exercises.map(name => <option key={name} value={name}>{name}</option>)}
+          </select>
+          <div className="line-chart-wrap">
+            {loading ? <Skeleton height={130} /> : (
+              <LineChart
+                points={loadPoints}
+                valueSuffix="kg"
+                singleMsg={v => `1 registro: ${v}kg — treine mais vezes para ver a evolução`}
+                emptyMsg={selectedExercise ? 'Nenhum registro para este exercício' : 'Selecione um exercício com carga registrada'}
+              />
+            )}
+          </div>
+          {!loading && selectedExercise && <WeekCompare logs={logs} exercise={selectedExercise} />}
+          {!loading && selectedExercise && <LoadHistory points={loadPoints} />}
+        </div>
+
+        <div className="dash-card">
+          <div className="dash-card__title">Recordes pessoais — maior carga</div>
+          {loadingPR ? <Skeleton height={100} /> : <PRList logs={allTimeLogs} />}
+        </div>
       </div>
 
-      <div className="dash-card">
-        <div className="dash-card__title">Recordes pessoais — maior carga</div>
-        {loadingPR ? <Skeleton height={100} /> : <PRList logs={allTimeLogs} />}
+      <div className="section-group">
+        <div className="section-group__label">Dieta</div>
+
+        <div className="dash-card">
+          <div className="dash-card__title">Água consumida por dia</div>
+          <div className="line-chart-wrap">
+            {loading ? <Skeleton height={130} /> : (
+              <LineChart
+                points={waterPoints}
+                valueSuffix="L"
+                singleMsg={v => `1 dia registrado: ${v}L — registre água em outros dias para ver a evolução`}
+                emptyMsg="Nenhuma água registrada ainda. Registre na aba Dieta."
+              />
+            )}
+          </div>
+        </div>
+
+        <div className="dash-card">
+          <div className="dash-card__title">Calorias consumidas por dia</div>
+          <p className="dash-card__subtitle">Soma dos alimentos registrados em cada dia</p>
+          <div className="line-chart-wrap">
+            {loading ? <Skeleton height={130} /> : (
+              <LineChart
+                points={caloriePoints}
+                valueSuffix="kcal"
+                singleMsg={v => `1 dia registrado: ${v}kcal — registre alimentos em outros dias para ver a evolução`}
+                emptyMsg="Nenhum alimento registrado ainda. Registre na aba Dieta."
+              />
+            )}
+          </div>
+        </div>
       </div>
     </section>
   );

@@ -1,12 +1,14 @@
-import { useEffect, useRef, useState } from 'react';
-import { treinoData, TODAY_NAME } from '../data/treinoData';
+import { useRef, useState } from 'react';
+import { TODAY_NAME } from '../data/treinoData';
 import { useAuth } from '../context/AuthContext';
 import { useWorkout } from '../context/WorkoutContext';
 import { useToast } from '../context/ToastContext';
 import { parseRestSeconds, getDateForWeekday, formatDuration } from '../lib/utils';
 import { db } from '../lib/supabase';
 import { playWorkoutFinishedSound } from '../lib/sound';
+import { checkForNewPR } from '../lib/records';
 import RestTimer from '../components/RestTimer';
+import PlanEditorModal from '../components/PlanEditorModal';
 import { useWorkoutTimer } from '../hooks/useWorkoutTimer';
 
 function calcDayTotalCarga(day) {
@@ -25,13 +27,15 @@ function calcDayTotalCarga(day) {
 
 function SetRow({ ex, n, day, bump, onRestStart }) {
   const { user } = useAuth();
-  const { saveSetState } = useWorkout();
+  const { saveSetState, workoutIds } = useWorkout();
+  const toast = useToast();
   const [carga, setCarga] = useState(() => localStorage.getItem(`set_${ex.nome}_${n}_carga`) || '');
+  const [reps, setReps] = useState(() => localStorage.getItem(`set_${ex.nome}_${n}_reps`) || '');
   const [done, setDone] = useState(() => localStorage.getItem(`set_${ex.nome}_${n}_done`) === 'true');
   const [saved, setSaved] = useState(false);
   const saveTimer = useRef(null);
 
-  function handleInput(e) {
+  function handleCargaInput(e) {
     const val = e.target.value;
     setCarga(val);
     localStorage.setItem(`set_${ex.nome}_${n}_carga`, val);
@@ -40,6 +44,21 @@ function SetRow({ ex, n, day, bump, onRestStart }) {
     saveTimer.current = setTimeout(async () => {
       if (user) {
         await saveSetState(day.dia, ex.nome, n, { carga: val === '' ? null : parseFloat(val) });
+        setSaved(true);
+        setTimeout(() => setSaved(false), 1200);
+      }
+    }, 800);
+  }
+
+  function handleRepsInput(e) {
+    const val = e.target.value;
+    setReps(val);
+    localStorage.setItem(`set_${ex.nome}_${n}_reps`, val);
+    bump();
+    clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(async () => {
+      if (user) {
+        await saveSetState(day.dia, ex.nome, n, { reps: val === '' ? null : parseFloat(val) });
         setSaved(true);
         setTimeout(() => setSaved(false), 1200);
       }
@@ -55,7 +74,22 @@ function SetRow({ ex, n, day, bump, onRestStart }) {
       const restSeconds = parseRestSeconds(ex.descanso);
       if (restSeconds > 0) onRestStart(ex.nome, restSeconds);
     }
-    if (user) await saveSetState(day.dia, ex.nome, n, { completed: next });
+    if (user) {
+      const wId = await saveSetState(day.dia, ex.nome, n, { completed: next });
+      if (next) {
+        const cargaNum = parseFloat(carga);
+        if (Number.isFinite(cargaNum)) {
+          try {
+            const pr = await checkForNewPR(user.id, ex.nome, cargaNum, reps, {
+              workoutId: wId ?? workoutIds[day.dia], setNumber: n,
+            });
+            if (pr) toast(`🏆 Novo recorde em ${ex.nome}!`);
+          } catch (err) {
+            console.error('checkForNewPR:', err);
+          }
+        }
+      }
+    }
   }
 
   return (
@@ -64,7 +98,12 @@ function SetRow({ ex, n, day, bump, onRestStart }) {
       <input
         className={`set-row__carga${saved ? ' saved' : ''}`}
         type="text" inputMode="decimal" placeholder="kg" autoComplete="off"
-        value={carga} onChange={handleInput}
+        value={carga} onChange={handleCargaInput}
+      />
+      <input
+        className={`set-row__carga${saved ? ' saved' : ''}`}
+        type="text" inputMode="numeric" placeholder="reps" autoComplete="off"
+        value={reps} onChange={handleRepsInput}
       />
       <button
         type="button"
@@ -259,19 +298,20 @@ function DayCard({ day, isToday, bump, onRestStart }) {
 
 export default function TreinoPage() {
   const { user } = useAuth();
-  const { dataVersion, syncStatus, syncNow } = useWorkout();
+  const { dataVersion, syncStatus, syncNow, activePlanDays } = useWorkout();
   const loading = syncStatus === 'loading';
   const [tick, setTick] = useState(0);
   const bump = () => setTick(t => t + 1);
   const [restSession, setRestSession] = useState(null);
   const restKey = useRef(0);
+  const [showPlanEditor, setShowPlanEditor] = useState(false);
 
   function handleRestStart(label, seconds) {
     restKey.current += 1;
     setRestSession({ key: restKey.current, label, seconds });
   }
 
-  const workDays = treinoData.filter(d => d.dia !== 'Sábado' && d.dia !== 'Domingo');
+  const workDays = activePlanDays.filter(d => d.dia !== 'Sábado' && d.dia !== 'Domingo');
   const done = workDays.filter(d => localStorage.getItem(`treino_${d.dia}`) === 'true').length;
   const total = workDays.length;
 
@@ -283,7 +323,7 @@ export default function TreinoPage() {
     bump();
     if (user) {
       try {
-        const dates = treinoData.map(d => getDateForWeekday(d.dia));
+        const dates = activePlanDays.map(d => getDateForWeekday(d.dia));
         const { error } = await db.from('workouts').delete().eq('user_id', user.id).in('workout_date', dates);
         if (error) throw error;
         await syncNow();
@@ -301,18 +341,21 @@ export default function TreinoPage() {
           <span className="progress-card__count">{done}/{total} treinos</span>
         </div>
         <div className="progress-card__bar">
-          <div className="progress-card__fill" style={{ width: `${(done / total) * 100}%` }} />
+          <div className="progress-card__fill" style={{ width: `${total ? (done / total) * 100 : 0}%` }} />
         </div>
       </div>
       <div className="toolbar">
         <p className="toolbar__hint">
           {loading ? 'Carregando dados salvos…' : 'Marque os treinos · salva automático'}
         </p>
-        <button className="btn btn--ghost btn--sm" onClick={handleReset} disabled={loading}>Limpar</button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="btn btn--ghost btn--sm" onClick={() => setShowPlanEditor(true)}>⚙️ Editar treino</button>
+          <button className="btn btn--ghost btn--sm" onClick={handleReset} disabled={loading}>Limpar</button>
+        </div>
       </div>
       <div id="treinoContainer">
         <div className={`accordion${loading ? ' accordion--loading' : ''}`} key={dataVersion}>
-          {treinoData.map(day => (
+          {activePlanDays.map(day => (
             <DayCard key={day.dia} day={day} isToday={day.dia === TODAY_NAME} bump={bump} onRestStart={handleRestStart} />
           ))}
         </div>
@@ -322,6 +365,9 @@ export default function TreinoPage() {
       </footer>
       {restSession && (
         <RestTimer session={restSession} onClose={() => setRestSession(null)} />
+      )}
+      {showPlanEditor && (
+        <PlanEditorModal onClose={() => setShowPlanEditor(false)} />
       )}
     </section>
   );

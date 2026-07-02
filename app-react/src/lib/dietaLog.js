@@ -40,3 +40,14 @@ export async function upsertWaterLog(userId, date, amountMl) {
     );
   if (error) throw error;
 }
+
+export async function fetchWaterLogsRange(userId, sinceDate) {
+  const { data, error } = await db
+    .from('water_logs')
+    .select('log_date, amount_ml')
+    .eq('user_id', userId)
+    .gte('log_date', sinceDate)
+    .order('log_date', { ascending: true });
+  if (error) throw error;
+  return data || [];
+}

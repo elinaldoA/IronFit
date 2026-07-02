@@ -2,7 +2,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { getDietaData, getMacroGoals, TODAY_DATE, WATER_STORAGE_KEY } from '../data/treinoData';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
+import { useWorkout } from '../context/WorkoutContext';
 import { fetchMealLogs, upsertMealLog, fetchWaterLog, upsertWaterLog } from '../lib/dietaLog';
+import { fetchFoodLogs, addFoodItem, deleteFoodItem } from '../lib/foodLog';
+import { fetchRecipes } from '../lib/recipes';
+import { enqueue } from '../lib/syncQueue';
+import RecipeModal from '../components/RecipeModal';
 
 function mealKey(meal) {
   return `dieta_${TODAY_DATE}_${meal.nome}`;
@@ -16,9 +21,75 @@ function fmtLiters(ml) {
   return (ml / 1000).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 }
 
-function MealCard({ meal, bump, user }) {
+function FoodItemRow({ item, onDelete }) {
+  return (
+    <div className="food-item-row">
+      <span className="food-item-row__name">{item.food_name}{item.quantidade ? ` · ${item.quantidade}` : ''}</span>
+      <span className="food-item-row__kcal">{item.kcal}kcal</span>
+      <button type="button" className="food-item-row__del" onClick={() => onDelete(item.id)} aria-label="Remover alimento">✕</button>
+    </div>
+  );
+}
+
+function AddFoodForm({ onAdd, onCancel, recipes }) {
+  const [foodName, setFoodName] = useState('');
+  const [quantidade, setQuantidade] = useState('');
+  const [kcal, setKcal] = useState('');
+  const [proteina, setProteina] = useState('');
+  const [carboidrato, setCarboidrato] = useState('');
+  const [gordura, setGordura] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  function applyRecipe(recipeId) {
+    const r = recipes.find(r => r.id === recipeId);
+    if (!r) return;
+    setFoodName(r.name);
+    setKcal(String(r.kcal));
+    setProteina(String(r.proteina));
+    setCarboidrato(String(r.carboidrato));
+    setGordura(String(r.gordura));
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    if (!foodName.trim() || saving) return;
+    setSaving(true);
+    try {
+      await onAdd({ foodName: foodName.trim(), quantidade, kcal, proteina, carboidrato, gordura });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <form className="food-add-form" onSubmit={handleSubmit}>
+      {recipes.length > 0 && (
+        <select className="input input--sm" defaultValue="" onChange={e => applyRecipe(e.target.value)}>
+          <option value="">Usar receita salva…</option>
+          {recipes.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+        </select>
+      )}
+      <input className="input input--sm" placeholder="Alimento" value={foodName} onChange={e => setFoodName(e.target.value)} />
+      <input className="input input--sm" placeholder="Quantidade (ex.: 150g)" value={quantidade} onChange={e => setQuantidade(e.target.value)} />
+      <div className="food-add-form__nums">
+        <input className="input input--sm" placeholder="Kcal" inputMode="decimal" value={kcal} onChange={e => setKcal(e.target.value)} />
+        <input className="input input--sm" placeholder="Prot." inputMode="decimal" value={proteina} onChange={e => setProteina(e.target.value)} />
+        <input className="input input--sm" placeholder="Carb." inputMode="decimal" value={carboidrato} onChange={e => setCarboidrato(e.target.value)} />
+        <input className="input input--sm" placeholder="Gord." inputMode="decimal" value={gordura} onChange={e => setGordura(e.target.value)} />
+      </div>
+      <div className="food-add-form__actions">
+        <button type="submit" className="btn btn--primary btn--sm" disabled={saving}>{saving ? 'Salvando…' : 'Adicionar'}</button>
+        <button type="button" className="btn btn--ghost btn--sm" onClick={onCancel}>Cancelar</button>
+      </div>
+    </form>
+  );
+}
+
+function MealCard({ meal, bump, user, items, onAddItem, onDeleteItem, recipes }) {
   const toast = useToast();
+  const { markPending } = useWorkout();
   const done = localStorage.getItem(mealKey(meal)) === 'true';
+  const [showAdd, setShowAdd] = useState(false);
 
   async function toggle() {
     const next = !done;
@@ -30,8 +101,15 @@ function MealCard({ meal, bump, user }) {
         await upsertMealLog(user.id, TODAY_DATE, meal.nome, next);
       } catch (err) {
         console.error('upsertMealLog:', err);
+        enqueue('meal_log', { userId: user.id, date: TODAY_DATE, mealName: meal.nome, completed: next });
+        markPending();
       }
     }
+  }
+
+  async function handleAdd(item) {
+    await onAddItem(meal.nome, item);
+    setShowAdd(false);
   }
 
   return (
@@ -46,6 +124,20 @@ function MealCard({ meal, bump, user }) {
       <div className="meal-card__body">
         <div className="meal-card__name">{meal.nome}</div>
         <div className="meal-card__desc" dangerouslySetInnerHTML={{ __html: meal.descricao }} />
+
+        {items.length > 0 && (
+          <div className="food-item-list">
+            {items.map(item => (
+              <FoodItemRow key={item.id} item={item} onDelete={onDeleteItem} />
+            ))}
+          </div>
+        )}
+
+        {showAdd ? (
+          <AddFoodForm onAdd={handleAdd} onCancel={() => setShowAdd(false)} recipes={recipes} />
+        ) : (
+          <button type="button" className="btn btn--ghost btn--sm meal-card__add-food" onClick={() => setShowAdd(true)}>+ Adicionar alimento</button>
+        )}
       </div>
     </div>
   );
@@ -97,6 +189,7 @@ function WaterTracker({ water, goalMl, onAdd, onReset }) {
 
 export default function DietaPage() {
   const { user, updateProfile } = useAuth();
+  const { markPending } = useWorkout();
   const [tick, setTick] = useState(0);
   const bump = () => setTick(t => t + 1);
   const toast = useToast();
@@ -106,18 +199,34 @@ export default function DietaPage() {
   const [meals, setMeals] = useState(() => getDietaData(user));
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(meals);
+  const [foodLogs, setFoodLogs] = useState([]);
+  const [recipes, setRecipes] = useState([]);
+  const [showRecipes, setShowRecipes] = useState(false);
+
+  async function refreshRecipes() {
+    if (!user) return;
+    try {
+      setRecipes(await fetchRecipes(user.id));
+    } catch (err) {
+      console.error('fetchRecipes:', err);
+    }
+  }
 
   useEffect(() => {
     if (!user) return;
 
     async function loadDietaLogs() {
       try {
-        const [mealLogs, waterMl] = await Promise.all([
+        const [mealLogs, waterMl, items, savedRecipes] = await Promise.all([
           fetchMealLogs(user.id, TODAY_DATE),
           fetchWaterLog(user.id, TODAY_DATE),
+          fetchFoodLogs(user.id, TODAY_DATE),
+          fetchRecipes(user.id),
         ]);
         mealLogs.forEach(m => localStorage.setItem(`dieta_${TODAY_DATE}_${m.meal_name}`, m.completed));
         if (waterMl !== null) localStorage.setItem(WATER_STORAGE_KEY, waterMl);
+        setRecipes(savedRecipes);
+        setFoodLogs(items);
         bump();
       } catch (err) {
         console.error('loadDietaLogs:', err);
@@ -130,23 +239,53 @@ export default function DietaPage() {
   const done = meals.filter(m => localStorage.getItem(mealKey(m)) === 'true').length;
   const total = meals.length;
   const water = getWaterMl();
-  const remainingRatio = total > 0 ? Math.max(0, (total - done) / total) : 1;
+  const consumed = foodLogs.reduce((acc, item) => ({
+    kcal: acc.kcal + (parseFloat(item.kcal) || 0),
+    proteina: acc.proteina + (parseFloat(item.proteina) || 0),
+    carboidrato: acc.carboidrato + (parseFloat(item.carboidrato) || 0),
+    gordura: acc.gordura + (parseFloat(item.gordura) || 0),
+  }), { kcal: 0, proteina: 0, carboidrato: 0, gordura: 0 });
   const remainingMacros = {
-    kcal: Math.round(macros.macroKcal * remainingRatio),
-    proteina: Math.round(macros.macroProteina * remainingRatio),
-    carboidrato: Math.round(macros.macroCarboidrato * remainingRatio),
-    gordura: Math.round(macros.macroGordura * remainingRatio),
+    kcal: Math.max(0, Math.round(macros.macroKcal - consumed.kcal)),
+    proteina: Math.max(0, Math.round(macros.macroProteina - consumed.proteina)),
+    carboidrato: Math.max(0, Math.round(macros.macroCarboidrato - consumed.carboidrato)),
+    gordura: Math.max(0, Math.round(macros.macroGordura - consumed.gordura)),
   };
+
+  async function handleAddFoodItem(mealName, item) {
+    try {
+      const saved = await addFoodItem(user.id, { date: TODAY_DATE, mealName, ...item });
+      setFoodLogs(list => [...list, saved]);
+      toast('🍎 Alimento registrado');
+    } catch (err) {
+      console.error('addFoodItem:', err);
+      toast('⚠️ Erro ao registrar alimento');
+    }
+  }
+
+  async function handleDeleteFoodItem(id) {
+    try {
+      await deleteFoodItem(id);
+      setFoodLogs(list => list.filter(i => i.id !== id));
+    } catch (err) {
+      console.error('deleteFoodItem:', err);
+      toast('⚠️ Erro ao remover alimento');
+    }
+  }
 
   async function handleReset() {
     if (!window.confirm('Limpar os checks de refeição de hoje?')) return;
     meals.forEach(m => localStorage.removeItem(mealKey(m)));
     bump();
     if (user) {
-      try {
-        await Promise.all(meals.map(m => upsertMealLog(user.id, TODAY_DATE, m.nome, false)));
-      } catch (err) {
-        console.error('resetMealLogs:', err);
+      const results = await Promise.allSettled(meals.map(m => upsertMealLog(user.id, TODAY_DATE, m.nome, false)));
+      const failed = results.map((r, i) => ({ r, meal: meals[i] })).filter(({ r }) => r.status === 'rejected');
+      if (failed.length) {
+        failed.forEach(({ r, meal }) => {
+          console.error('resetMealLogs:', meal.nome, r.reason);
+          enqueue('meal_log', { userId: user.id, date: TODAY_DATE, mealName: meal.nome, completed: false });
+        });
+        markPending();
       }
     }
   }
@@ -158,14 +297,26 @@ export default function DietaPage() {
     if (deltaMl > 0 && next >= waterGoalMl && water < waterGoalMl) {
       toast('🎉 Meta de hidratação do dia atingida!');
     }
-    if (user) upsertWaterLog(user.id, TODAY_DATE, next).catch(err => console.error('upsertWaterLog:', err));
+    if (user) {
+      upsertWaterLog(user.id, TODAY_DATE, next).catch(err => {
+        console.error('upsertWaterLog:', err);
+        enqueue('water_log', { userId: user.id, date: TODAY_DATE, amountMl: next });
+        markPending();
+      });
+    }
   }
 
   function handleResetWater() {
     if (!window.confirm('Zerar a água registrada hoje?')) return;
     localStorage.removeItem(WATER_STORAGE_KEY);
     bump();
-    if (user) upsertWaterLog(user.id, TODAY_DATE, 0).catch(err => console.error('resetWaterLog:', err));
+    if (user) {
+      upsertWaterLog(user.id, TODAY_DATE, 0).catch(err => {
+        console.error('resetWaterLog:', err);
+        enqueue('water_log', { userId: user.id, date: TODAY_DATE, amountMl: 0 });
+        markPending();
+      });
+    }
   }
 
   function startEditing() {
@@ -213,7 +364,7 @@ export default function DietaPage() {
           <span className="progress-card__count">{done}/{total} refeições</span>
         </div>
         <div className="progress-card__bar">
-          <div className="progress-card__fill" style={{ width: `${(done / total) * 100}%` }} />
+          <div className="progress-card__fill" style={{ width: `${total ? (done / total) * 100 : 0}%` }} />
         </div>
       </div>
       <div className="toolbar">
@@ -224,6 +375,7 @@ export default function DietaPage() {
             onClick={editing ? () => setEditing(false) : startEditing}
           >{editing ? '✖️' : '✏️'}</button>
           <button type="button" className="btn btn--ghost btn--sm" title="Limpar checks de hoje" onClick={handleReset}>🧹</button>
+          <button type="button" className="btn btn--ghost btn--sm" title="Receitas salvas" onClick={() => setShowRecipes(true)}>📋 Receitas</button>
         </div>
       </div>
       <WaterTracker water={water} goalMl={waterGoalMl} onAdd={handleAddWater} onReset={handleResetWater} />
@@ -262,9 +414,18 @@ export default function DietaPage() {
       ) : (
         <div id="dietaContainer" className="meals">
           {meals.map(meal => (
-            <MealCard key={meal.nome} meal={meal} bump={bump} user={user} />
+            <MealCard
+              key={meal.nome} meal={meal} bump={bump} user={user}
+              items={foodLogs.filter(f => f.meal_name === meal.nome)}
+              onAddItem={handleAddFoodItem}
+              onDeleteItem={handleDeleteFoodItem}
+              recipes={recipes}
+            />
           ))}
         </div>
+      )}
+      {showRecipes && (
+        <RecipeModal onClose={() => { setShowRecipes(false); refreshRecipes(); }} />
       )}
     </section>
   );

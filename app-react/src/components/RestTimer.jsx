@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { playRestDoneSound } from '../lib/sound';
+import { getModalRoot } from '../lib/modalRoot';
 
 const RADIUS = 90;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
@@ -95,6 +96,6 @@ export default function RestTimer({ session, onClose }) {
         </button>
       </div>
     </div>,
-    document.body
+    getModalRoot()
   );
 }

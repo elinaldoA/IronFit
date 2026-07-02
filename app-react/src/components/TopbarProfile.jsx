@@ -3,13 +3,19 @@ import { useAvatar } from '../context/AvatarContext';
 import { useWorkout } from '../context/WorkoutContext';
 import { getDisplayName } from '../lib/utils';
 
-const SYNC_TITLE = { ok: 'Sincronizado', loading: 'Sincronizando…', error: 'Erro de sync' };
+const SYNC_TITLE = {
+  ok: 'Sincronizado',
+  loading: 'Sincronizando…',
+  pending: 'Alterações pendentes — toque para sincronizar',
+  error: 'Erro de sync — toque para tentar novamente',
+};
 
 export default function TopbarProfile() {
   const { user } = useAuth();
   const { avatarData } = useAvatar();
-  const { syncStatus } = useWorkout();
+  const { syncStatus, syncNow } = useWorkout();
   const name = getDisplayName(user);
+  const clickable = syncStatus === 'pending' || syncStatus === 'error';
 
   return (
     <div className="topbar__profile">
@@ -19,7 +25,14 @@ export default function TopbarProfile() {
           : (name?.[0]?.toUpperCase() || '?')}
       </span>
       <span className="topbar__name">{name}</span>
-      <span className={`sync-dot sync-dot--${syncStatus}`} title={SYNC_TITLE[syncStatus] || ''} />
+      {clickable ? (
+        <button
+          type="button" className={`sync-dot sync-dot--${syncStatus} sync-dot--clickable`}
+          title={SYNC_TITLE[syncStatus]} onClick={syncNow}
+        />
+      ) : (
+        <span className={`sync-dot sync-dot--${syncStatus}`} title={SYNC_TITLE[syncStatus] || ''} />
+      )}
     </div>
   );
 }
