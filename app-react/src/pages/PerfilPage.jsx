@@ -65,6 +65,8 @@ export default function PerfilPage({ active }) {
   const [macroAgua, setMacroAgua] = useState(md.macroAgua || localStorage.getItem('profile_macroAgua') || '');
   const [weeklyGoal, setWeeklyGoal] = useState(md.weeklyGoal || localStorage.getItem('profile_weeklyGoal') || DEFAULT_WEEKLY_GOAL);
   const [stats, setStats] = useState({ total: '–', week: '–', streak: '–' });
+  const [trainingTotals, setTrainingTotals] = useState({ volumeKg: 0, hours: 0 });
+  const [volumeSeries, setVolumeSeries] = useState([]);
   const [weightLogs, setWeightLogs] = useState([]);
   const [unlockedBadges, setUnlockedBadges] = useState(new Set());
   const { avatarData, setAvatarData } = useAvatar();
@@ -100,6 +102,10 @@ export default function PerfilPage({ active }) {
         treinosSemana: typeof stats.week === 'number' ? stats.week : 0,
         weeklyGoal: weeklyGoalNum,
         totalTreinos: typeof stats.total === 'number' ? stats.total : 0,
+        volumeKg: trainingTotals.volumeKg,
+        horas: trainingTotals.hours,
+        pesoSeries: weightLogs.slice(-10).map(w => w.peso),
+        volumeSeries: volumeSeries.slice(-10).map(v => v.kg),
       });
       if (result === 'downloaded') toast('🖼️ Imagem baixada');
     } catch (err) {
@@ -134,7 +140,7 @@ export default function PerfilPage({ active }) {
     async function loadProfileData() {
       try {
         const [{ data: workouts, error }, weights] = await Promise.all([
-          db.from('workouts').select('workout_date').eq('user_id', user.id).eq('completed', true).order('workout_date', { ascending: false }),
+          db.from('workouts').select('id, workout_date, duration_seconds').eq('user_id', user.id).eq('completed', true).order('workout_date', { ascending: false }),
           fetchWeightLogs(user.id),
         ]);
         if (error) throw error;
@@ -146,6 +152,32 @@ export default function PerfilPage({ active }) {
         const streak = calcStreak(workouts.map(w => w.workout_date));
 
         setStats({ total, week, streak: streak > 0 ? `${streak}d` : '0d' });
+
+        const totalSeconds = workouts.reduce((sum, w) => sum + (w.duration_seconds || 0), 0);
+        const workoutIds = workouts.map(w => w.id);
+        let volumeKg = 0;
+        if (workoutIds.length) {
+          const { data: sets, error: setsErr } = await db
+            .from('exercise_sets')
+            .select('carga, workout_id')
+            .in('workout_id', workoutIds)
+            .eq('completed', true)
+            .not('carga', 'is', null);
+          if (setsErr) throw setsErr;
+
+          const dateByWorkout = Object.fromEntries(workouts.map(w => [w.id, w.workout_date]));
+          const totalsByDate = {};
+          (sets || []).forEach(s => {
+            const carga = parseFloat(s.carga) || 0;
+            volumeKg += carga;
+            const date = dateByWorkout[s.workout_id];
+            totalsByDate[date] = (totalsByDate[date] || 0) + carga;
+          });
+          setVolumeSeries(Object.keys(totalsByDate).sort().map(date => ({ date, kg: Math.round(totalsByDate[date]) })));
+        } else {
+          setVolumeSeries([]);
+        }
+        setTrainingTotals({ volumeKg: Math.round(volumeKg), hours: Math.round((totalSeconds / 3600) * 10) / 10 });
 
         try {
           const [totalFoodLogs, totalPhotos, recipes] = await Promise.all([
