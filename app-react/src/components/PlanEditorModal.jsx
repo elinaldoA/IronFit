@@ -86,28 +86,6 @@ function ExerciseRow({ ex, canUp, canDown, onMove, onChange, onDelete }) {
   );
 }
 
-function PosRow({ item, canUp, canDown, onMove, onChange, onDelete }) {
-  const [local, setLocal] = useState(item);
-  useEffect(() => { setLocal(item); }, [item.id]);
-
-  function save(field) {
-    if (local[field] !== item[field]) onChange(item.id, { [field === 'detalhe' ? 'tecnica' : field]: local[field] });
-  }
-
-  return (
-    <div className="plan-ex-row">
-      <MoveButtons canUp={canUp} canDown={canDown} onMove={onMove} />
-      <div className="plan-ex-row__fields">
-        <input className="input input--sm plan-ex-row__name" placeholder="Item pós-treino" value={local.nome}
-          onChange={e => setLocal(l => ({ ...l, nome: e.target.value }))} onBlur={() => save('nome')} />
-        <input className="input input--sm" placeholder="Detalhe" value={local.detalhe}
-          onChange={e => setLocal(l => ({ ...l, detalhe: e.target.value }))} onBlur={() => save('detalhe')} />
-      </div>
-      <button type="button" className="plan-ex-row__del" onClick={() => onDelete(item.id)} aria-label="Remover item">✕</button>
-    </div>
-  );
-}
-
 export default function PlanEditorModal({ onClose }) {
   const { user } = useAuth();
   const { refreshPlan } = useWorkout();
@@ -248,8 +226,8 @@ export default function PlanEditorModal({ onClose }) {
       const orderIndex = isPost ? day.pos.length : day.exercicios.length;
       await addExercise(day.id, {
         nome: isPost ? 'Novo item' : 'Novo exercício',
-        series: isPost ? '-' : '3', reps: isPost ? '-' : '10-12',
-        descanso: isPost ? '-' : '60s', tecnica: '', is_post_workout: isPost,
+        series: '3', reps: isPost ? '12-15' : '10-12',
+        descanso: isPost ? '45s' : '60s', tecnica: '', is_post_workout: isPost,
       }, orderIndex);
       await reloadDays();
     } catch (err) {
@@ -374,8 +352,8 @@ export default function PlanEditorModal({ onClose }) {
 
                   <div className="plan-editor__section-title">Pós-treino</div>
                   {day.pos.map((p, i) => (
-                    <PosRow
-                      key={p.id} item={p}
+                    <ExerciseRow
+                      key={p.id} ex={p}
                       canUp={i > 0} canDown={i < day.pos.length - 1}
                       onMove={dir => handleMove(true, p.id, dir)}
                       onChange={handleUpdateExercise} onDelete={handleDeleteExercise}

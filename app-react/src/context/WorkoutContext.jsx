@@ -62,7 +62,7 @@ async function createExerciseLogs(workoutId, day) {
   if (!day) return;
   const rows = [
     ...day.exercicios.map(ex => ({ workout_id: workoutId, exercise_name: ex.nome, series: ex.series, reps: ex.reps, rest_time: ex.descanso, technique: ex.tecnica, is_post_workout: false })),
-    ...day.pos.map(p => ({ workout_id: workoutId, exercise_name: p.nome, series: '-', reps: '-', rest_time: '-', technique: p.detalhe, is_post_workout: true })),
+    ...day.pos.map(p => ({ workout_id: workoutId, exercise_name: p.nome, series: p.series, reps: p.reps, rest_time: p.descanso, technique: p.tecnica, is_post_workout: true })),
   ];
   if (!rows.length) return;
   const { error } = await db.from('exercise_logs').insert(rows);

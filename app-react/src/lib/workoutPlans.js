@@ -8,8 +8,8 @@ function exercisesToRows(planDayId, day) {
       descanso: ex.descanso, tecnica: ex.tecnica, is_post_workout: false, order_index: idx,
     })),
     ...day.pos.map((p, idx) => ({
-      plan_day_id: planDayId, nome: p.nome, series: '-', reps: '-', descanso: '-',
-      tecnica: p.detalhe, is_post_workout: true, order_index: idx,
+      plan_day_id: planDayId, nome: p.nome, series: p.series, reps: p.reps,
+      descanso: p.descanso, tecnica: p.tecnica, is_post_workout: true, order_index: idx,
     })),
   ];
 }
@@ -84,7 +84,7 @@ export async function fetchPlanDays(planId) {
       .map(e => ({ id: e.id, nome: e.nome, series: e.series, reps: e.reps, descanso: e.descanso, tecnica: e.tecnica })),
     pos: exercises
       .filter(e => e.plan_day_id === d.id && e.is_post_workout)
-      .map(e => ({ id: e.id, nome: e.nome, detalhe: e.tecnica })),
+      .map(e => ({ id: e.id, nome: e.nome, series: e.series, reps: e.reps, descanso: e.descanso, tecnica: e.tecnica })),
   }));
 }
 

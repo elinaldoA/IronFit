@@ -13,10 +13,10 @@ export const treinoData = [
         { nome:'Tríceps Corda na Polia',         series:'3', reps:'12-15', descanso:'45s', tecnica:'Full ROM' },
         { nome:'Tríceps Testa com Barra W',      series:'3', reps:'10-12', descanso:'60s', tecnica:'Cotovelos fixos' },
     ], pos:[
-        { nome:'🏃 Cardio — Esteira Inclinada',          detalhe:'20min · 10% inclinação / 5km/h' },
-        { nome:'🔷 Abdominal Polia (Corda)',              detalhe:'4×12-15 · Pico de contração' },
-        { nome:'🔷 Elevação de Pernas Pendurado',        detalhe:'3× falha (máx 20) · Máximo alongamento' },
-        { nome:'🔷 Prancha com Peso',                    detalhe:'3×45s · Isometria com carga' },
+        { nome:'🔷 Abdominal Polia (Corda)',      series:'4', reps:'12-15',                          descanso:'45s', tecnica:'Pico de contração' },
+        { nome:'🔷 Elevação de Pernas Pendurado', series:'3', reps:'até a falha (máx 20)',           descanso:'45s', tecnica:'Máximo alongamento' },
+        { nome:'🔷 Prancha com Peso',             series:'3', reps:'45s',                            descanso:'45s', tecnica:'Isometria com carga' },
+        { nome:'🏃 Cardio — Esteira Inclinada',   series:'-', reps:'20min · 10% inclinação / 5km/h', descanso:'-',  tecnica:'' },
     ]},
     { dia:'Terça', foco:'Costas / Bíceps', exercicios:[
         { nome:'Puxada Aberta Frente',           series:'4', reps:'8-10',  descanso:'90s', tecnica:'Tronco inclinado' },
@@ -28,10 +28,10 @@ export const treinoData = [
         { nome:'Rosca Martelo Alternada',        series:'3', reps:'12-15', descanso:'45s', tecnica:'Supinação no pico' },
         { nome:'Rosca Inversa com Barra',        series:'2', reps:'12-15', descanso:'45s', tecnica:'Foco antebraço' },
     ], pos:[
-        { nome:'🏃 Cardio — Escada',                     detalhe:'20min · Moderado (130bpm)' },
-        { nome:'🔷 Abdominal Supra com Halter',          detalhe:'3×15-20 · Carga moderada' },
-        { nome:'🔷 Bicicleta no Solo',                   detalhe:'3×20 cada perna · Movimento alternado' },
-        { nome:'🔷 Prancha Lateral com Elevação',        detalhe:'3×30s cada lado · Estabilidade dinâmica' },
+        { nome:'🔷 Abdominal Supra com Halter',       series:'3', reps:'15-20',                     descanso:'45s', tecnica:'Carga moderada' },
+        { nome:'🔷 Bicicleta no Solo',                series:'3', reps:'20 cada perna',             descanso:'45s', tecnica:'Movimento alternado' },
+        { nome:'🔷 Prancha Lateral com Elevação',     series:'3', reps:'30s cada lado',             descanso:'45s', tecnica:'Estabilidade dinâmica' },
+        { nome:'🏃 Cardio — Escada',                  series:'-', reps:'20min · Moderado (130bpm)', descanso:'-',  tecnica:'' },
     ]},
     { dia:'Quarta', foco:'Pernas / Quadríceps', exercicios:[
         { nome:'Agachamento Livre',              series:'4', reps:'6-8',   descanso:'2min', tecnica:'Profundo (paralelo)' },
@@ -42,10 +42,10 @@ export const treinoData = [
         { nome:'Panturrilha em Pé',              series:'4', reps:'12-15', descanso:'45s',  tecnica:'2s de estiramento' },
         { nome:'Panturrilha Sentado',            series:'3', reps:'15-20', descanso:'45s',  tecnica:'Pico de contração' },
     ], pos:[
-        { nome:'🏃 Cardio — Caminhada Leve',             detalhe:'10min · Resfriamento' },
-        { nome:'🔷 Crunch Invertido (banco)',             detalhe:'4×15 · Levanta quadril' },
-        { nome:'🔷 Russian Twist com Halter',            detalhe:'3×20 cada lado · Rotação tronco' },
-        { nome:'🔷 Prancha Frontal Estática',            detalhe:'3×60s · Isometria máxima' },
+        { nome:'🔷 Crunch Invertido (banco)',  series:'4', reps:'15',                   descanso:'45s', tecnica:'Levanta quadril' },
+        { nome:'🔷 Russian Twist com Halter',  series:'3', reps:'20 cada lado',         descanso:'45s', tecnica:'Rotação tronco' },
+        { nome:'🔷 Prancha Frontal Estática',  series:'3', reps:'60s',                  descanso:'45s', tecnica:'Isometria máxima' },
+        { nome:'🏃 Cardio — Caminhada Leve',   series:'-', reps:'10min · Resfriamento', descanso:'-',  tecnica:'' },
     ]},
     { dia:'Quinta', foco:'Superiores / Força', exercicios:[
         { nome:'Supino Reto com Halteres',       series:'4', reps:'6-8',   descanso:'2min', tecnica:'Carga alta (força)' },
@@ -56,10 +56,10 @@ export const treinoData = [
         { nome:'Tríceps Francês com Halter',     series:'3', reps:'10-12', descanso:'60s',  tecnica:'Cotovelo estabilizado' },
         { nome:'Farmer Walk',                    series:'3', reps:'30s',   descanso:'60s',  tecnica:'Grip + Core' },
     ], pos:[
-        { nome:'🏃 Cardio — Caminhada (6km/h)',          detalhe:'25min · Moderado' },
-        { nome:'🔷 Abdominal na Máquina',                detalhe:'4×12-15 · Carga controlada' },
-        { nome:'🔷 Tesoura (Scissor Kicks)',             detalhe:'3×20 cada perna · Alonga ísquios' },
-        { nome:'🔷 Prancha com Braços Estendidos',       detalhe:'3×45s · Ativa peitoral e core' },
+        { nome:'🔷 Abdominal na Máquina',               series:'4', reps:'12-15',           descanso:'45s', tecnica:'Carga controlada' },
+        { nome:'🔷 Tesoura (Scissor Kicks)',            series:'3', reps:'20 cada perna',    descanso:'45s', tecnica:'Alonga ísquios' },
+        { nome:'🔷 Prancha com Braços Estendidos',      series:'3', reps:'45s',              descanso:'45s', tecnica:'Ativa peitoral e core' },
+        { nome:'🏃 Cardio — Caminhada (6km/h)',         series:'-', reps:'25min · Moderado', descanso:'-',  tecnica:'' },
     ]},
     { dia:'Sexta', foco:'Posterior / Glúteos', exercicios:[
         { nome:'Romeno com Barra',               series:'4', reps:'8-10',  descanso:'90s', tecnica:'Estiramento máximo' },
@@ -70,10 +70,10 @@ export const treinoData = [
         { nome:'Elevação Pélvica',               series:'3', reps:'15-20', descanso:'45s', tecnica:'Pausa 3s no topo' },
         { nome:'Panturrilha em Pé (carga)',      series:'4', reps:'10-12', descanso:'45s', tecnica:'Ênfase potência' },
     ], pos:[
-        { nome:'🏃 Cardio — HIIT Esteira',               detalhe:'15min · 1min corre / 2min caminha' },
-        { nome:'🔷 Roda (Ab Wheel)',                     detalhe:'4×10-12 · Extensão total core' },
-        { nome:'🔷 Elevação de Pernas Deitado',          detalhe:'3×15-20 · Toque os pés' },
-        { nome:'🔷 Prancha Lateral Estática',            detalhe:'3×45s cada lado · Estabilidade unilateral' },
+        { nome:'🔷 Roda (Ab Wheel)',             series:'4', reps:'10-12',                            descanso:'45s', tecnica:'Extensão total core' },
+        { nome:'🔷 Elevação de Pernas Deitado',  series:'3', reps:'15-20',                            descanso:'45s', tecnica:'Toque os pés' },
+        { nome:'🔷 Prancha Lateral Estática',    series:'3', reps:'45s cada lado',                    descanso:'45s', tecnica:'Estabilidade unilateral' },
+        { nome:'🏃 Cardio — HIIT Esteira',       series:'-', reps:'15min · 1min corre / 2min caminha', descanso:'-',  tecnica:'' },
     ]},
     { dia:'Sábado', foco:'Cardio Leve / Recuperação', exercicios:[
         { nome:'Caminhada Rápida ou Bicicleta', series:'-', reps:'30-40min', descanso:'-', tecnica:'5-6km/h ou 130bpm' },

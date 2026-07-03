@@ -754,10 +754,6 @@ button, input { font-family: inherit; }
   margin-bottom: 10px;
 }
 
-.post-row { padding: 7px 0; border-bottom: 1px solid var(--border); }
-.post-row:last-child { border-bottom: none; }
-.post-row__name   { font-weight: 600; color: var(--text); font-size: 0.8rem; }
-.post-row__detail { color: var(--text-muted); font-size: 0.72rem; margin-top: 1px; }
 
 /* ============================================================
    MACROS

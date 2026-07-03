@@ -14,7 +14,7 @@ import { useWorkoutTimer } from '../hooks/useWorkoutTimer';
 
 function calcDayTotalCarga(day) {
   let total = 0;
-  day.exercicios.forEach(ex => {
+  [...day.exercicios, ...day.pos].forEach(ex => {
     const count = parseInt(ex.series, 10);
     if (!count) return;
     for (let n = 1; n <= count; n++) {
@@ -27,7 +27,7 @@ function calcDayTotalCarga(day) {
 }
 
 function gatherExerciseDetails(day) {
-  return day.exercicios
+  return [...day.exercicios, ...day.pos]
     .map(ex => {
       const count = parseInt(ex.series, 10) || 0;
       const sets = Array.from({ length: count }, (_, i) => {
@@ -254,6 +254,44 @@ function DayCard({ day, isToday, bump, onRestStart, onFinish }) {
     if (user) await saveWorkoutStatus(day.dia, next);
   }
 
+  function renderExerciseBlock(ex) {
+    const setCount = parseInt(ex.series, 10);
+    if (!setCount) {
+      return (
+        <div className="ex-block" key={ex.nome}>
+          <div className="ex-block__header">
+            <span className="ex-name">{ex.nome}</span>
+            <span className="ex-block__meta">{ex.reps}</span>
+          </div>
+        </div>
+      );
+    }
+    const version = markVersions[ex.nome] || 0;
+    const allDone = allSetsDone(ex, setCount);
+    return (
+      <div className="ex-block" key={ex.nome}>
+        <div className="ex-block__header">
+          <div className="ex-block__titles">
+            <span className="ex-name">{ex.nome}</span>
+            <span className="ex-block__meta">{ex.reps} reps · desc. {ex.descanso}</span>
+          </div>
+          <button
+            type="button"
+            className={`ex-block__mark-all${allDone ? ' ex-block__mark-all--done' : ''}`}
+            onClick={() => toggleAllSets(ex, setCount)}
+          >
+            {allDone ? '✓ Todas' : 'Marcar todas'}
+          </button>
+        </div>
+        <div className="ex-block__sets">
+          {Array.from({ length: setCount }, (_, i) => i + 1).map(n => (
+            <SetRow key={`${n}-${version}`} ex={ex} n={n} day={day} bump={bump} onRestStart={onRestStart} />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={`day-card${isToday ? ' day-card--today' : ''}`}>
       <div className={`day-card__header${open ? ' open' : ''}`} onClick={() => setOpen(o => !o)}>
@@ -312,53 +350,12 @@ function DayCard({ day, isToday, bump, onRestStart, onFinish }) {
           Carga total do treino: {calcDayTotalCarga(day).toLocaleString('pt-BR')} kg
         </div>
 
-        {day.exercicios.map(ex => {
-          const setCount = parseInt(ex.series, 10);
-          if (!setCount) {
-            return (
-              <div className="ex-block" key={ex.nome}>
-                <div className="ex-block__header">
-                  <span className="ex-name">{ex.nome}</span>
-                  <span className="ex-block__meta">{ex.reps}</span>
-                </div>
-              </div>
-            );
-          }
-          const version = markVersions[ex.nome] || 0;
-          const allDone = allSetsDone(ex, setCount);
-          return (
-            <div className="ex-block" key={ex.nome}>
-              <div className="ex-block__header">
-                <div className="ex-block__titles">
-                  <span className="ex-name">{ex.nome}</span>
-                  <span className="ex-block__meta">{ex.reps} reps · desc. {ex.descanso}</span>
-                </div>
-                <button
-                  type="button"
-                  className={`ex-block__mark-all${allDone ? ' ex-block__mark-all--done' : ''}`}
-                  onClick={() => toggleAllSets(ex, setCount)}
-                >
-                  {allDone ? '✓ Todas' : 'Marcar todas'}
-                </button>
-              </div>
-              <div className="ex-block__sets">
-                {Array.from({ length: setCount }, (_, i) => i + 1).map(n => (
-                  <SetRow key={`${n}-${version}`} ex={ex} n={n} day={day} bump={bump} onRestStart={onRestStart} />
-                ))}
-              </div>
-            </div>
-          );
-        })}
+        {day.exercicios.map(ex => renderExerciseBlock(ex))}
 
         {day.pos.length > 0 && (
           <div className="post-section">
             <div className="post-title">🏁 Pós-treino — Cardio + Abdômen</div>
-            {day.pos.map(p => (
-              <div className="post-row" key={p.nome}>
-                <div className="post-row__name">{p.nome}</div>
-                <div className="post-row__detail">{p.detalhe}</div>
-              </div>
-            ))}
+            {day.pos.map(p => renderExerciseBlock(p))}
           </div>
         )}
       </div>
