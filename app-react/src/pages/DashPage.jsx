@@ -378,8 +378,36 @@ export default function DashPage({ active }) {
     return Object.keys(totals).sort().map(date => ({ value: Math.round(totals[date]), label: fmtDate(date) }));
   }, [foodLogs]);
 
+  const weekDone = useMemo(() => {
+    const thisWeekStart = getWeekStart();
+    return workouts.filter(w => w.completed && w.workout_date >= thisWeekStart).length;
+  }, [workouts]);
+
   return (
     <section id="page-dash" className="page active">
+      <div className="dash-stats-grid">
+        <div className="stat-card">
+          <span className="stat-card__icon">🔥</span>
+          <span className="stat-card__value">{streak}</span>
+          <span className="stat-card__label">Dias de sequência</span>
+        </div>
+        <div className="stat-card">
+          <span className="stat-card__icon">🏋️</span>
+          <span className="stat-card__value">{totalTreinos}</span>
+          <span className="stat-card__label">Treinos concluídos</span>
+        </div>
+        <div className="stat-card">
+          <span className="stat-card__icon">📅</span>
+          <span className="stat-card__value">{weekDone}/{weeklyGoal}</span>
+          <span className="stat-card__label">Esta semana</span>
+        </div>
+        <div className="stat-card">
+          <span className="stat-card__icon">📷</span>
+          <span className="stat-card__value">{totalPhotosCount}</span>
+          <span className="stat-card__label">Fotos de progresso</span>
+        </div>
+      </div>
+
       <div className="dash-card">
         <div className="dash-card__title-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginBottom: '8px' }}>
           <div className="dash-card__title" style={{ marginBottom: 0 }}>Visualização Anatômica</div>
