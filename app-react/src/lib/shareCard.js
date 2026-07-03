@@ -1,4 +1,7 @@
 import { formatDuration } from './utils';
+import { getMuscleGroupsForDay } from '../data/treinoData';
+import { FRONT_MUSCLE_PATHS, BACK_MUSCLE_PATHS, BODY_VIEW_SIZE } from '../data/bodyMuscleMap';
+import bodyAnatomyImg from '../assets/body-anatomy.jpg';
 
 // Desenha um card de resumo do treino num canvas offscreen (mesmo padrão de canvas
 // usado em lib/imageUtils.js para compressão de imagem) e retorna um Blob PNG pronto
@@ -7,6 +10,15 @@ const CARD_WIDTH = 1080;
 const PAD_X = 40;
 const CONTENT_W = CARD_WIDTH - PAD_X * 2;
 const WATERMARK_H = 130;
+
+const BODY_BOX_W = 220;
+const BODY_BOX_H = Math.round((BODY_BOX_W * BODY_VIEW_SIZE.height) / BODY_VIEW_SIZE.width);
+const BODY_BOX_GAP = 32;
+const BODY_TITLE_H = 60;
+const BODY_LABEL_H = 36;
+const BODY_SECTION_H = BODY_TITLE_H + BODY_BOX_H + BODY_LABEL_H;
+const MUSCLE_FILL = 'rgba(56,189,248,0.55)';
+const MUSCLE_STROKE = 'rgba(56,189,248,0.9)';
 
 const ROW_PAD = 24;
 const NAME_H = 40;
@@ -135,6 +147,57 @@ function loadImage(src) {
   });
 }
 
+// Recorta a metade (frente ou costas) de body-anatomy.jpg dentro de um box
+// arredondado e pinta por cima os mesmos hotspots de músculo do BodyAvatar.
+function drawBodyView(ctx, img, x, y, w, h, srcX, paths, activeGroups, label) {
+  roundedRectPath(ctx, x, y, w, h, 16);
+  ctx.save();
+  ctx.clip();
+  ctx.fillStyle = '#e8e8e8';
+  ctx.fillRect(x, y, w, h);
+  ctx.drawImage(img, srcX, 0, BODY_VIEW_SIZE.width, BODY_VIEW_SIZE.height, x, y, w, h);
+
+  ctx.translate(x, y);
+  ctx.scale(w / BODY_VIEW_SIZE.width, h / BODY_VIEW_SIZE.height);
+  ctx.lineWidth = 3;
+  paths.forEach(p => {
+    if (!activeGroups.has(p.muscle)) return;
+    const path = new Path2D(p.d);
+    ctx.fillStyle = MUSCLE_FILL;
+    ctx.fill(path);
+    ctx.strokeStyle = MUSCLE_STROKE;
+    ctx.stroke(path);
+  });
+  ctx.restore();
+
+  roundedRectPath(ctx, x, y, w, h, 16);
+  ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  ctx.textAlign = 'center';
+  ctx.font = '600 24px system-ui, sans-serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.85)';
+  ctx.fillText(label, x + w / 2, y + h + 30);
+}
+
+async function drawBodyAvatarSection(ctx, x, y, contentW, day) {
+  ctx.textAlign = 'left';
+  ctx.font = '700 32px system-ui, sans-serif';
+  ctx.fillStyle = '#ffffff';
+  ctx.fillText('Músculos trabalhados', x, y + 32);
+
+  const activeGroups = day ? getMuscleGroupsForDay(day) : new Set();
+  const img = await loadImage(bodyAnatomyImg);
+
+  const totalW = BODY_BOX_W * 2 + BODY_BOX_GAP;
+  const startX = x + (contentW - totalW) / 2;
+  const boxY = y + BODY_TITLE_H;
+
+  drawBodyView(ctx, img, startX, boxY, BODY_BOX_W, BODY_BOX_H, 0, FRONT_MUSCLE_PATHS, activeGroups, 'Frente');
+  drawBodyView(ctx, img, startX + BODY_BOX_W + BODY_BOX_GAP, boxY, BODY_BOX_W, BODY_BOX_H, BODY_VIEW_SIZE.width, BACK_MUSCLE_PATHS, activeGroups, 'Costas');
+}
+
 // Watermark discreto (só a logo) pra identificar o app quando o card circula
 // fora do IronFit, sem competir visualmente com as estatísticas.
 async function drawWatermark(ctx, width, y, height) {
@@ -173,7 +236,7 @@ export async function renderWorkoutSummaryCard(summary) {
   const exercisesH = exerciseLayouts.reduce((sum, l) => sum + l.rowH + rowGap, 0);
 
   const height = 60 + headerH + statBoxH * 2 + statsGap + sectionGap + progressH + sectionGap +
-    exercisesTitleH + exercisesH + WATERMARK_H + 40;
+    BODY_SECTION_H + sectionGap + exercisesTitleH + exercisesH + WATERMARK_H + 40;
 
   const canvas = document.createElement('canvas');
   canvas.width = CARD_WIDTH;
@@ -210,6 +273,9 @@ export async function renderWorkoutSummaryCard(summary) {
   drawProgressBar(ctx, PAD_X, y, CONTENT_W, 'Meta da semana', `${weekDone}/${weekTotal}`, weekPct);
 
   y += progressH + sectionGap;
+
+  await drawBodyAvatarSection(ctx, PAD_X, y, CONTENT_W, day);
+  y += BODY_SECTION_H + sectionGap;
 
   if (exerciseLayouts.length) {
     ctx.textAlign = 'left';
