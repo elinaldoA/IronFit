@@ -168,8 +168,8 @@ export async function renamePlan(planId, name) {
   if (error) throw error;
 }
 
-export async function deletePlan(planId) {
-  const { error } = await db.from('workout_plans').delete().eq('id', planId);
+export async function deletePlan(planId, userId) {
+  const { error } = await db.from('workout_plans').delete().eq('id', planId).eq('user_id', userId);
   if (error) throw error;
 }
 

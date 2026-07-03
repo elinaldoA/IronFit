@@ -2,6 +2,17 @@ export function isNotificationSupported() {
   return typeof window !== 'undefined' && 'Notification' in window;
 }
 
+// No iOS Safari, notificações (inclusive push) só existem depois de instalar
+// o app na tela de início (iOS 16.4+) — abrir pelo Safari normal nunca terá
+// `Notification` no `window`, então vale avisar o motivo em vez de só dizer
+// "não suportado".
+export function isIosSafariNotInstalled() {
+  if (typeof navigator === 'undefined') return false;
+  const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
+  const isStandalone = window.matchMedia?.('(display-mode: standalone)')?.matches || navigator.standalone === true;
+  return isIos && !isStandalone;
+}
+
 export async function requestNotificationPermission() {
   if (!isNotificationSupported()) return 'unsupported';
   if (Notification.permission === 'granted') return 'granted';

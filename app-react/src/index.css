@@ -2211,7 +2211,7 @@ button.profile-section__title {
   gap: 18px;
 }
 
-.summary-modal__footer { padding: 12px 18px 18px; }
+.summary-modal__footer { padding: 12px 18px 18px; display: flex; flex-direction: column; gap: 10px; }
 
 .summary-stats {
   display: grid;

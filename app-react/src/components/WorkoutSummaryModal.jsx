@@ -1,19 +1,39 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { getModalRoot } from '../lib/modalRoot';
 import { formatDuration } from '../lib/utils';
 import { getMuscleGroupsForDay } from '../data/treinoData';
+import { shareWorkoutSummary } from '../lib/shareCard';
+import { useToast } from '../context/ToastContext';
 import BodyAvatar from './BodyAvatar';
 
 export default function WorkoutSummaryModal({ summary, onClose }) {
   const { day, durationMs, totalCarga, weekDone, weekTotal, exercises, totalSetsDone, totalPlannedSets } = summary;
   const activeGroups = getMuscleGroupsForDay(day);
   const weekPct = weekTotal ? Math.min(100, (weekDone / weekTotal) * 100) : 0;
+  const toast = useToast();
+  const [sharing, setSharing] = useState(false);
 
   useEffect(() => {
     document.body.classList.add('modal-open');
     return () => document.body.classList.remove('modal-open');
   }, []);
+
+  async function handleShare() {
+    if (sharing) return;
+    setSharing(true);
+    try {
+      const result = await shareWorkoutSummary(summary);
+      if (result === 'downloaded') toast('🖼️ Imagem baixada');
+    } catch (err) {
+      if (err?.name !== 'AbortError') {
+        console.error('shareWorkoutSummary:', err);
+        toast('⚠️ Erro ao gerar imagem de compartilhamento');
+      }
+    } finally {
+      setSharing(false);
+    }
+  }
 
   return createPortal(
     <div className="summary-modal" role="dialog" aria-modal="true">
@@ -87,6 +107,9 @@ export default function WorkoutSummaryModal({ summary, onClose }) {
         </div>
 
         <div className="summary-modal__footer">
+          <button type="button" className="btn btn--outline btn--full" disabled={sharing} onClick={handleShare}>
+            {sharing ? 'Gerando imagem…' : '📤 Compartilhar treino'}
+          </button>
           <button type="button" className="btn btn--primary btn--full" onClick={onClose}>Fechar</button>
         </div>
       </div>

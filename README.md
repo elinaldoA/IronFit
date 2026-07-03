@@ -2,7 +2,7 @@
 
 PWA (Progressive Web App) para acompanhamento de treino, dieta e evolução física, com sincronização em nuvem e uso offline.
 
-🔗 **App em produção:** https://elinaldoa.github.io/meu-plano/
+🔗 **App em produção:** https://elinaldoa.github.io/IronFit/
 
 ## Funcionalidades
 
@@ -49,12 +49,15 @@ cd app-react
 npm install
 ```
 
-Crie um arquivo `.env` dentro de `app-react/` (não é versionado) com as credenciais do seu próprio projeto de backend:
+Crie um arquivo `.env` dentro de `app-react/` (não é versionado) com as credenciais do seu próprio projeto de backend — use `app-react/.env.example` como modelo:
 
 ```
 VITE_SUPABASE_URL=<url do seu projeto>
 VITE_SUPABASE_ANON_KEY=<chave publica/anon do seu projeto>
+VITE_VAPID_PUBLIC_KEY=<chave publica VAPID, gerada com `npx web-push generate-vapid-keys`>
 ```
+
+`VITE_VAPID_PUBLIC_KEY` é usada para inscrever o navegador em notificações push (funcionam com o app fechado). Sem ela, o app funciona normalmente, só a inscrição de push falha com "Push não configurado". A chave privada correspondente fica só no backend, como secret `VAPID_PRIVATE_KEY` da Edge Function `send-reminders` (nunca no frontend).
 
 Depois:
 
@@ -65,4 +68,6 @@ npm run build    # build de produção em app-react/dist
 
 ## Deploy
 
-O deploy é automático: qualquer push em `main` que altere arquivos dentro de `app-react/` dispara o workflow `.github/workflows/deploy.yml`, que builda o projeto e publica no GitHub Pages.
+O deploy é automático: qualquer push em `main` que altere `app-react/` ou `supabase/migrations/` dispara o workflow `.github/workflows/deploy.yml`, que aplica migrations pendentes no banco, builda o projeto e publica no GitHub Pages.
+
+Aplicar migrations em CI exige o secret `SUPABASE_ACCESS_TOKEN` (Supabase Dashboard → Account → Access Tokens) configurado no repositório (Settings → Secrets and variables → Actions).

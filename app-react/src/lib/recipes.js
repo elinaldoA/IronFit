@@ -28,7 +28,7 @@ export async function addRecipe(userId, recipe) {
   return data;
 }
 
-export async function deleteRecipe(id) {
-  const { error } = await db.from('saved_recipes').delete().eq('id', id);
+export async function deleteRecipe(id, userId) {
+  const { error } = await db.from('saved_recipes').delete().eq('id', id).eq('user_id', userId);
   if (error) throw error;
 }

@@ -222,7 +222,7 @@ export default function PlanEditorModal({ onClose }) {
     if (plans.length <= 1) { toast('Você precisa de pelo menos um plano'); return; }
     if (!window.confirm(`Excluir o plano "${plan?.name}"? Essa ação não pode ser desfeita.`)) return;
     try {
-      await deletePlan(planId);
+      await deletePlan(planId, user.id);
       await loadPlans();
       toast('🗑️ Plano excluído');
     } catch (err) {

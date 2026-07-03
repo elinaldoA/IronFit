@@ -91,7 +91,7 @@ export default function ProgressPhotos() {
   async function handleDelete(id) {
     if (!window.confirm('Excluir esta foto?')) return;
     try {
-      await deletePhoto(id);
+      await deletePhoto(id, user.id);
       setPhotos(list => list.filter(p => p.id !== id));
       setViewerIndex(null);
       toast('🗑️ Foto excluída');

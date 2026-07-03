@@ -295,6 +295,7 @@ export default function DashPage({ active }) {
         newlyEarned.forEach(b => toast(`🏅 Conquista desbloqueada: ${b.title}`));
       } catch (err) {
         console.error('loadAllTimeLogs:', err);
+        toast('⚠️ Erro ao carregar recordes e conquistas');
       } finally {
         setLoadingPR(false);
       }

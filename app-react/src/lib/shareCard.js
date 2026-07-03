@@ -1,78 +1,129 @@
-// Desenha um card de progresso num canvas offscreen (mesmo padrão de canvas usado
-// em lib/imageUtils.js para compressão de imagem) e retorna um Blob PNG pronto pra
-// compartilhar ou baixar.
+import { formatDuration } from './utils';
+
+// Desenha um card de resumo do treino num canvas offscreen (mesmo padrão de canvas
+// usado em lib/imageUtils.js para compressão de imagem) e retorna um Blob PNG pronto
+// pra compartilhar ou baixar.
+const CARD_WIDTH = 1080;
+const PAD_X = 40;
+const CONTENT_W = CARD_WIDTH - PAD_X * 2;
+const WATERMARK_H = 130;
+
+const ROW_PAD = 24;
+const NAME_H = 40;
+const NAME_TO_PILLS_GAP = 14;
+const PILL_H = 46;
+const PILL_GAP_Y = 12;
+const PILL_GAP_X = 14;
+const PILL_PAD_X = 16;
+
+// ctx.roundRect() não existe no Firefox < 112 nem no Safari < 16, então o caminho
+// arredondado é montado manualmente em vez de depender da API nativa.
+function roundedRectPath(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
 function drawStatBox(ctx, x, y, w, h, value, label) {
   ctx.fillStyle = 'rgba(255,255,255,0.08)';
-  ctx.beginPath();
-  ctx.roundRect(x, y, w, h, 24);
+  roundedRectPath(ctx, x, y, w, h, 24);
   ctx.fill();
 
   ctx.textAlign = 'center';
   ctx.fillStyle = '#ffffff';
-  ctx.font = '800 56px system-ui, sans-serif';
+  ctx.font = '800 52px system-ui, sans-serif';
   ctx.fillText(value, x + w / 2, y + h / 2 - 4);
 
-  ctx.font = '500 30px system-ui, sans-serif';
+  ctx.font = '500 28px system-ui, sans-serif';
   ctx.fillStyle = 'rgba(255,255,255,0.75)';
-  ctx.fillText(label, x + w / 2, y + h / 2 + 44);
+  ctx.fillText(label, x + w / 2, y + h / 2 + 42);
 }
 
-function drawMiniChart(ctx, x, y, w, h, values, label, unit) {
-  ctx.fillStyle = 'rgba(255,255,255,0.08)';
-  ctx.beginPath();
-  ctx.roundRect(x, y, w, h, 24);
+function drawProgressBar(ctx, x, y, w, label, doneText, pct) {
+  ctx.textAlign = 'left';
+  ctx.font = '600 30px system-ui, sans-serif';
+  ctx.fillStyle = '#ffffff';
+  ctx.fillText(label, x, y);
+
+  ctx.textAlign = 'right';
+  ctx.fillStyle = 'rgba(255,255,255,0.75)';
+  ctx.fillText(doneText, x + w, y);
+
+  const barY = y + 20;
+  const barH = 26;
+  ctx.fillStyle = 'rgba(255,255,255,0.15)';
+  roundedRectPath(ctx, x, barY, w, barH, barH / 2);
   ctx.fill();
 
-  const padding = 22;
-  const chartX = x + padding;
-  const chartY = y + 40;
-  const chartW = w - padding * 2;
-  const chartH = h - 88;
+  const fillW = Math.max(barH, (w * pct) / 100);
+  ctx.fillStyle = '#38bdf8';
+  roundedRectPath(ctx, x, barY, fillW, barH, barH / 2);
+  ctx.fill();
+}
 
-  if (!values || values.length < 2) {
-    ctx.textAlign = 'center';
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '600 28px system-ui, sans-serif';
-    ctx.fillText(values?.length === 1 ? `${values[0]}${unit}` : 'Sem dados ainda', x + w / 2, y + h / 2 + 8);
-  } else {
-    const min = Math.min(...values);
-    const max = Math.max(...values);
-    const range = max - min || 1;
-    const stepX = chartW / (values.length - 1);
-    const pointAt = i => ({
-      px: chartX + i * stepX,
-      py: chartY + chartH - ((values[i] - min) / range) * chartH,
-    });
+function measureChips(ctx, sets) {
+  ctx.font = '600 26px system-ui, sans-serif';
+  return (sets || []).map(s => {
+    const text = `${s.reps ?? '–'}× ${s.carga ?? '–'}kg`;
+    return { text, width: ctx.measureText(text).width + PILL_PAD_X * 2, done: s.done };
+  });
+}
 
-    ctx.beginPath();
-    values.forEach((_, i) => {
-      const { px, py } = pointAt(i);
-      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
-    });
-    ctx.strokeStyle = '#38bdf8';
-    ctx.lineWidth = 5;
-    ctx.lineJoin = 'round';
-    ctx.lineCap = 'round';
-    ctx.stroke();
+function layoutChips(chips, maxW) {
+  const lines = [];
+  let line = [];
+  let lineW = 0;
+  chips.forEach(chip => {
+    const w = chip.width + (line.length ? PILL_GAP_X : 0);
+    if (lineW + w > maxW && line.length) {
+      lines.push(line);
+      line = [chip];
+      lineW = chip.width;
+    } else {
+      line.push(chip);
+      lineW += w;
+    }
+  });
+  if (line.length) lines.push(line);
+  return lines;
+}
 
-    values.forEach((_, i) => {
-      const { px, py } = pointAt(i);
-      ctx.beginPath();
-      ctx.arc(px, py, 6, 0, Math.PI * 2);
-      ctx.fillStyle = '#ffffff';
+function exerciseRowHeight(lines) {
+  const pillsH = lines.length ? lines.length * PILL_H + (lines.length - 1) * PILL_GAP_Y : 0;
+  return ROW_PAD + NAME_H + (lines.length ? NAME_TO_PILLS_GAP + pillsH : 0) + ROW_PAD;
+}
+
+function drawExerciseRow(ctx, x, y, w, h, exercise, lines) {
+  ctx.fillStyle = 'rgba(255,255,255,0.08)';
+  roundedRectPath(ctx, x, y, w, h, 20);
+  ctx.fill();
+
+  ctx.textAlign = 'left';
+  ctx.font = '700 30px system-ui, sans-serif';
+  ctx.fillStyle = '#ffffff';
+  ctx.fillText(exercise.nome, x + ROW_PAD, y + ROW_PAD + 28);
+
+  let py = y + ROW_PAD + NAME_H + NAME_TO_PILLS_GAP;
+  lines.forEach(line => {
+    let px = x + ROW_PAD;
+    line.forEach(chip => {
+      ctx.fillStyle = chip.done ? 'rgba(56,189,248,0.35)' : 'rgba(255,255,255,0.12)';
+      roundedRectPath(ctx, px, py, chip.width, PILL_H, PILL_H / 2);
       ctx.fill();
+
+      ctx.textAlign = 'center';
+      ctx.font = '600 26px system-ui, sans-serif';
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(chip.text, px + chip.width / 2, py + PILL_H / 2 + 9);
+
+      px += chip.width + PILL_GAP_X;
     });
-
-    ctx.textAlign = 'right';
-    ctx.font = '700 26px system-ui, sans-serif';
-    ctx.fillStyle = '#ffffff';
-    ctx.fillText(`${values[values.length - 1]}${unit}`, x + w - padding, y + 30);
-  }
-
-  ctx.textAlign = 'center';
-  ctx.font = '500 26px system-ui, sans-serif';
-  ctx.fillStyle = 'rgba(255,255,255,0.75)';
-  ctx.fillText(label, x + w / 2, y + h - 16);
+    py += PILL_H + PILL_GAP_Y;
+  });
 }
 
 function loadImage(src) {
@@ -99,73 +150,100 @@ async function drawWatermark(ctx, width, y, height) {
   }
 }
 
-export async function renderShareCard({
-  nome, streak, treinosSemana, weeklyGoal, totalTreinos,
-  volumeKg = 0, horas = 0, pesoSeries = [], volumeSeries = [],
-}) {
-  const width = 1080;
-  const height = 1620;
+export async function renderWorkoutSummaryCard(summary) {
+  const {
+    day, durationMs, totalCarga, weekDone, weekTotal,
+    exercises = [], totalSetsDone, totalPlannedSets,
+  } = summary;
+
+  const measureCtx = document.createElement('canvas').getContext('2d');
+  const exerciseLayouts = exercises.map(ex => {
+    const chips = measureChips(measureCtx, ex.sets);
+    const lines = layoutChips(chips, CONTENT_W - ROW_PAD * 2);
+    return { ex, lines, rowH: exerciseRowHeight(lines) };
+  });
+
+  const headerH = 190;
+  const statsGap = 24;
+  const statBoxH = 160;
+  const progressH = 90;
+  const sectionGap = 36;
+  const exercisesTitleH = exerciseLayouts.length ? 60 : 0;
+  const rowGap = 20;
+  const exercisesH = exerciseLayouts.reduce((sum, l) => sum + l.rowH + rowGap, 0);
+
+  const height = 60 + headerH + statBoxH * 2 + statsGap + sectionGap + progressH + sectionGap +
+    exercisesTitleH + exercisesH + WATERMARK_H + 40;
+
   const canvas = document.createElement('canvas');
-  canvas.width = width;
+  canvas.width = CARD_WIDTH;
   canvas.height = height;
   const ctx = canvas.getContext('2d');
 
-  const gradient = ctx.createLinearGradient(0, 0, width, height);
+  const gradient = ctx.createLinearGradient(0, 0, CARD_WIDTH, height);
   gradient.addColorStop(0, '#0ea5e9');
   gradient.addColorStop(1, '#111827');
   ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, width, height);
+  ctx.fillRect(0, 0, CARD_WIDTH, height);
 
   ctx.textAlign = 'center';
   ctx.fillStyle = '#ffffff';
+  ctx.font = '700 40px system-ui, sans-serif';
+  ctx.fillText('🏁 Treino concluído!', CARD_WIDTH / 2, 90);
 
-  ctx.font = '700 42px system-ui, sans-serif';
-  ctx.fillText(nome ? `Progresso de ${nome}` : 'Meu progresso', width / 2, 130);
+  ctx.font = '600 32px system-ui, sans-serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.85)';
+  ctx.fillText(`${day?.dia ?? ''}${day?.foco ? ' · ' + day.foco : ''}`, CARD_WIDTH / 2, 140);
 
-  ctx.font = '900 220px system-ui, sans-serif';
-  ctx.fillText(String(streak), width / 2, 440);
+  let y = 60 + headerH;
+  const boxW = (CONTENT_W - statsGap) / 2;
 
-  ctx.font = '700 44px system-ui, sans-serif';
-  ctx.fillText('dias de sequência 🔥', width / 2, 510);
+  drawStatBox(ctx, PAD_X, y, boxW, statBoxH, formatDuration(durationMs), 'duração');
+  drawStatBox(ctx, PAD_X + boxW + statsGap, y, boxW, statBoxH, `${(totalCarga || 0).toLocaleString('pt-BR')}kg`, 'carga total');
 
-  const gap = 28;
-  const boxW = (width - 80 - gap) / 2;
-  const boxH = 170;
-  const col1 = 40;
-  const col2 = col1 + boxW + gap;
-  let row = 590;
+  y += statBoxH + statsGap;
+  drawStatBox(ctx, PAD_X, y, boxW, statBoxH, `${totalSetsDone}/${totalPlannedSets}`, 'séries concluídas');
+  drawStatBox(ctx, PAD_X + boxW + statsGap, y, boxW, statBoxH, String(exercises.length), 'exercícios');
 
-  drawStatBox(ctx, col1, row, boxW, boxH, `${treinosSemana}/${weeklyGoal}`, 'treinos esta semana');
-  drawStatBox(ctx, col2, row, boxW, boxH, String(totalTreinos), 'treinos no total');
+  y += statBoxH + sectionGap;
+  const weekPct = weekTotal ? Math.min(100, (weekDone / weekTotal) * 100) : 0;
+  drawProgressBar(ctx, PAD_X, y, CONTENT_W, 'Meta da semana', `${weekDone}/${weekTotal}`, weekPct);
 
-  row += boxH + gap;
-  drawStatBox(ctx, col1, row, boxW, boxH, `${volumeKg}kg`, 'volume total levantado');
-  drawStatBox(ctx, col2, row, boxW, boxH, `${horas}h`, 'horas treinadas');
+  y += progressH + sectionGap;
 
-  row += boxH + gap;
-  drawMiniChart(ctx, col1, row, boxW, boxH, pesoSeries, 'Evolução do peso', 'kg');
-  drawMiniChart(ctx, col2, row, boxW, boxH, volumeSeries, 'Volume por treino', 'kg');
+  if (exerciseLayouts.length) {
+    ctx.textAlign = 'left';
+    ctx.font = '700 32px system-ui, sans-serif';
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText('Detalhes das séries', PAD_X, y + 32);
+    y += exercisesTitleH;
 
-  await drawWatermark(ctx, width, height - 140, 140);
+    exerciseLayouts.forEach(({ ex, lines, rowH }) => {
+      drawExerciseRow(ctx, PAD_X, y, CONTENT_W, rowH, ex, lines);
+      y += rowH + rowGap;
+    });
+  }
+
+  await drawWatermark(ctx, CARD_WIDTH, height - WATERMARK_H, WATERMARK_H);
 
   return new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
 }
 
-export async function shareProgress(data) {
-  const blob = await renderShareCard(data);
+export async function shareWorkoutSummary(summary) {
+  const blob = await renderWorkoutSummaryCard(summary);
   if (!blob) throw new Error('Não foi possível gerar a imagem.');
 
-  const file = new File([blob], 'meu-progresso.png', { type: 'image/png' });
+  const file = new File([blob], 'meu-treino.png', { type: 'image/png' });
 
   if (navigator.canShare && navigator.canShare({ files: [file] })) {
-    await navigator.share({ files: [file], title: 'Meu progresso', text: 'Confira meu progresso no IronFit! 💪' });
+    await navigator.share({ files: [file], title: 'Meu treino', text: 'Confira meu treino no IronFit! 💪' });
     return 'shared';
   }
 
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = 'meu-progresso.png';
+  a.download = 'meu-treino.png';
   document.body.appendChild(a);
   a.click();
   a.remove();

@@ -42,6 +42,7 @@ export async function unsubscribeFromPush() {
   const reg = await navigator.serviceWorker.ready;
   const sub = await reg.pushManager.getSubscription();
   if (!sub) return;
-  await db.from('push_subscriptions').delete().eq('endpoint', sub.endpoint);
+  const { error } = await db.from('push_subscriptions').delete().eq('endpoint', sub.endpoint);
+  if (error) throw error;
   await sub.unsubscribe();
 }

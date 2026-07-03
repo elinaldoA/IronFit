@@ -209,6 +209,7 @@ export default function DietaPage() {
       setRecipes(await fetchRecipes(user.id));
     } catch (err) {
       console.error('fetchRecipes:', err);
+      toast('⚠️ Erro ao carregar receitas');
     }
   }
 
@@ -230,6 +231,7 @@ export default function DietaPage() {
         bump();
       } catch (err) {
         console.error('loadDietaLogs:', err);
+        toast('⚠️ Erro ao carregar dados de hoje — o que aparece na tela pode estar desatualizado');
       }
     }
     loadDietaLogs();
@@ -265,7 +267,7 @@ export default function DietaPage() {
 
   async function handleDeleteFoodItem(id) {
     try {
-      await deleteFoodItem(id);
+      await deleteFoodItem(id, user.id);
       setFoodLogs(list => list.filter(i => i.id !== id));
     } catch (err) {
       console.error('deleteFoodItem:', err);
@@ -340,19 +342,21 @@ export default function DietaPage() {
     const cleaned = draft
       .filter(m => m.nome.trim() && m.horario.trim())
       .sort((a, b) => a.horario.localeCompare(b.horario));
+    const { error } = await updateProfile({ customMeals: cleaned });
+    if (error) return toast('⚠️ Não foi possível salvar — tente novamente');
     setMeals(cleaned);
     setEditing(false);
-    await updateProfile({ customMeals: cleaned });
     toast('🍽️ Refeições atualizadas!');
   }
 
   async function handleRestoreDefault() {
     if (!window.confirm('Restaurar as refeições padrão? Suas edições serão perdidas.')) return;
+    const { error } = await updateProfile({ customMeals: null });
+    if (error) return toast('⚠️ Não foi possível restaurar — tente novamente');
     const defaults = getDietaData(null);
     setMeals(defaults);
     setDraft(defaults);
     setEditing(false);
-    await updateProfile({ customMeals: null });
     toast('Refeições padrão restauradas');
   }
 

@@ -56,7 +56,7 @@ export function AuthProvider({ children }) {
 
   async function deleteAccount() {
     if (!user) return { error: 'Não autenticado.' };
-    const { error } = await db.from('workouts').delete().eq('user_id', user.id);
+    const { error } = await db.functions.invoke('delete-account');
     if (error) return { error: error.message };
     await db.auth.signOut();
     setUser(null);

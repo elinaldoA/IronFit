@@ -19,9 +19,7 @@ export function loadImage(dataUrl) {
   });
 }
 
-// Redimensiona (lado maior ≤ maxDimension) e recomprime em JPEG antes de salvar,
-// mantendo boa qualidade visual sem guardar o arquivo original inteiro.
-export async function compressImage(file, { maxDimension = MAX_DIMENSION, quality = JPEG_QUALITY } = {}) {
+async function resizeToCanvas(file, maxDimension) {
   const original = await fileToDataUrl(file);
   const img = await loadImage(original);
 
@@ -40,7 +38,23 @@ export async function compressImage(file, { maxDimension = MAX_DIMENSION, qualit
   canvas.width = width;
   canvas.height = height;
   canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+  return canvas;
+}
+
+// Redimensiona (lado maior ≤ maxDimension) e recomprime em JPEG antes de salvar,
+// mantendo boa qualidade visual sem guardar o arquivo original inteiro.
+export async function compressImage(file, { maxDimension = MAX_DIMENSION, quality = JPEG_QUALITY } = {}) {
+  const canvas = await resizeToCanvas(file, maxDimension);
   return canvas.toDataURL('image/jpeg', quality);
+}
+
+// Mesmo redimensionamento/compressão de compressImage, mas devolve um Blob
+// (em vez de data URL base64) para upload direto ao Supabase Storage.
+export async function compressImageBlob(file, { maxDimension = MAX_DIMENSION, quality = JPEG_QUALITY } = {}) {
+  const canvas = await resizeToCanvas(file, maxDimension);
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('Não foi possível processar a imagem.'))), 'image/jpeg', quality);
+  });
 }
 
 export function assertValidImage(file, maxUploadSize) {

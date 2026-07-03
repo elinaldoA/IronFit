@@ -59,9 +59,18 @@ Deno.serve(async () => {
   const userIds = [...new Set(subs.map((s) => s.user_id))];
   let sent = 0;
 
+  // Um único fetch paginado de todos os usuários em vez de uma chamada admin
+  // por usuário por minuto (evita rate limit do GoTrue com mais usuários).
+  const metaById = new Map();
+  for (let page = 1; ; page++) {
+    const { data: usersPage, error: usersErr } = await supabase.auth.admin.listUsers({ page, perPage: 1000 });
+    if (usersErr) return new Response(JSON.stringify({ error: usersErr.message }), { status: 500 });
+    for (const u of usersPage.users) metaById.set(u.id, u.user_metadata || {});
+    if (usersPage.users.length < 1000) break;
+  }
+
   for (const userId of userIds) {
-    const { data: userRes } = await supabase.auth.admin.getUserById(userId);
-    const meta = userRes?.user?.user_metadata || {};
+    const meta = metaById.get(userId) || {};
     const meals = Array.isArray(meta.customMeals) && meta.customMeals.length > 0 ? meta.customMeals : DEFAULT_MEALS;
     const macroAgua = Number(meta.macroAgua) > 0 ? Number(meta.macroAgua) : DEFAULT_MACRO_AGUA;
     const userSubs = subs.filter((s) => s.user_id === userId);

@@ -74,7 +74,7 @@ export default function RecipeModal({ onClose }) {
   async function handleDelete(id) {
     if (!window.confirm('Excluir esta receita?')) return;
     try {
-      await deleteRecipe(id);
+      await deleteRecipe(id, user.id);
       setRecipes(list => list.filter(r => r.id !== id));
     } catch (err) {
       console.error('deleteRecipe:', err);

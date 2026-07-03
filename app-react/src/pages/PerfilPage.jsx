@@ -10,10 +10,9 @@ import { TODAY_DATE } from '../data/treinoData';
 import { fetchWeightLogs, upsertWeightLog } from '../lib/weightLog';
 import { saveAvatar } from '../lib/avatar';
 import { DEFAULT_MACROS, DEFAULT_WEEKLY_GOAL } from '../data/treinoData';
-import { isNotificationSupported, sendNotification } from '../lib/notifications';
+import { isNotificationSupported, isIosSafariNotInstalled, sendNotification } from '../lib/notifications';
 import { useReminders } from '../hooks/useReminders';
 import { exportSummaryCSV, exportBackupJSON, printReport } from '../lib/exportData';
-import { shareProgress } from '../lib/shareCard';
 import LineChart from '../components/LineChart';
 
 function imcInfo(peso, altura) {
@@ -60,8 +59,6 @@ export default function PerfilPage({ active }) {
   const [macroAgua, setMacroAgua] = useState(md.macroAgua || localStorage.getItem('profile_macroAgua') || '');
   const [weeklyGoal, setWeeklyGoal] = useState(md.weeklyGoal || localStorage.getItem('profile_weeklyGoal') || DEFAULT_WEEKLY_GOAL);
   const [stats, setStats] = useState({ total: '–', week: '–', streak: '–' });
-  const [trainingTotals, setTrainingTotals] = useState({ volumeKg: 0, hours: 0 });
-  const [volumeSeries, setVolumeSeries] = useState([]);
   const [weightLogs, setWeightLogs] = useState([]);
   const { avatarData, setAvatarData } = useAvatar();
   const [remindersEnabled, toggleReminders] = useReminders(toast, user);
@@ -71,7 +68,6 @@ export default function PerfilPage({ active }) {
   const [accountOpen, setAccountOpen] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [exporting, setExporting] = useState(false);
-  const [sharing, setSharing] = useState(false);
 
   async function handleExport(action, label) {
     if (!user || exporting) return;
@@ -83,32 +79,6 @@ export default function PerfilPage({ active }) {
       toast(`⚠️ Erro ao gerar ${label}`);
     } finally {
       setExporting(false);
-    }
-  }
-
-  async function handleShare() {
-    if (sharing) return;
-    setSharing(true);
-    try {
-      const result = await shareProgress({
-        nome: getDisplayName(user),
-        streak: parseInt(stats.streak, 10) || 0,
-        treinosSemana: typeof stats.week === 'number' ? stats.week : 0,
-        weeklyGoal: weeklyGoalNum,
-        totalTreinos: typeof stats.total === 'number' ? stats.total : 0,
-        volumeKg: trainingTotals.volumeKg,
-        horas: trainingTotals.hours,
-        pesoSeries: weightLogs.slice(-10).map(w => w.peso),
-        volumeSeries: volumeSeries.slice(-10).map(v => v.kg),
-      });
-      if (result === 'downloaded') toast('🖼️ Imagem baixada');
-    } catch (err) {
-      if (err?.name !== 'AbortError') {
-        console.error('shareProgress:', err);
-        toast('⚠️ Erro ao gerar imagem de compartilhamento');
-      }
-    } finally {
-      setSharing(false);
     }
   }
 
@@ -146,32 +116,6 @@ export default function PerfilPage({ active }) {
         const streak = calcStreak(workouts.map(w => w.workout_date));
 
         setStats({ total, week, streak: streak > 0 ? `${streak}d` : '0d' });
-
-        const totalSeconds = workouts.reduce((sum, w) => sum + (w.duration_seconds || 0), 0);
-        const workoutIds = workouts.map(w => w.id);
-        let volumeKg = 0;
-        if (workoutIds.length) {
-          const { data: sets, error: setsErr } = await db
-            .from('exercise_sets')
-            .select('carga, workout_id')
-            .in('workout_id', workoutIds)
-            .eq('completed', true)
-            .not('carga', 'is', null);
-          if (setsErr) throw setsErr;
-
-          const dateByWorkout = Object.fromEntries(workouts.map(w => [w.id, w.workout_date]));
-          const totalsByDate = {};
-          (sets || []).forEach(s => {
-            const carga = parseFloat(s.carga) || 0;
-            volumeKg += carga;
-            const date = dateByWorkout[s.workout_id];
-            totalsByDate[date] = (totalsByDate[date] || 0) + carga;
-          });
-          setVolumeSeries(Object.keys(totalsByDate).sort().map(date => ({ date, kg: Math.round(totalsByDate[date]) })));
-        } else {
-          setVolumeSeries([]);
-        }
-        setTrainingTotals({ volumeKg: Math.round(volumeKg), hours: Math.round((totalSeconds / 3600) * 10) / 10 });
       } catch (err) {
         console.error('loadProfileStats:', err);
         toast('⚠️ Erro ao carregar estatísticas');
@@ -185,7 +129,8 @@ export default function PerfilPage({ active }) {
     localStorage.setItem('profile_nome', nome);
     localStorage.setItem('profile_sobrenome', sobrenome);
     localStorage.setItem('profile_apelido', apelido);
-    await updateProfile({ nome, sobrenome, apelido });
+    const { error } = await updateProfile({ nome, sobrenome, apelido });
+    if (error) return toast('⚠️ Não foi possível salvar — tente novamente');
     toast('✅ Dados pessoais salvos!');
   }
 
@@ -194,7 +139,8 @@ export default function PerfilPage({ active }) {
     localStorage.setItem('profile_altura', altura);
     localStorage.setItem('profile_meta', meta);
     localStorage.setItem('profile_pesoAlvo', pesoAlvo);
-    await updateProfile({ peso, altura, meta, pesoAlvo });
+    const { error } = await updateProfile({ peso, altura, meta, pesoAlvo });
+    if (error) return toast('⚠️ Não foi possível salvar — tente novamente');
 
     if (user && peso) {
       try {
@@ -211,7 +157,8 @@ export default function PerfilPage({ active }) {
 
   async function handleSaveWeeklyGoal() {
     localStorage.setItem('profile_weeklyGoal', weeklyGoal);
-    await updateProfile({ weeklyGoal });
+    const { error } = await updateProfile({ weeklyGoal });
+    if (error) return toast('⚠️ Não foi possível salvar — tente novamente');
     toast('📅 Meta semanal salva!');
   }
 
@@ -221,7 +168,8 @@ export default function PerfilPage({ active }) {
     localStorage.setItem('profile_macroCarboidrato', macroCarboidrato);
     localStorage.setItem('profile_macroGordura', macroGordura);
     localStorage.setItem('profile_macroAgua', macroAgua);
-    await updateProfile({ macroKcal, macroProteina, macroCarboidrato, macroGordura, macroAgua });
+    const { error } = await updateProfile({ macroKcal, macroProteina, macroCarboidrato, macroGordura, macroAgua });
+    if (error) return toast('⚠️ Não foi possível salvar — tente novamente');
     toast('🎯 Metas de macros salvas!');
   }
 
@@ -296,10 +244,6 @@ export default function PerfilPage({ active }) {
           <span className="stat-card__label">Total treinos</span>
         </div>
       </div>
-
-      <button type="button" className="btn btn--outline btn--full" disabled={sharing} onClick={handleShare}>
-        {sharing ? 'Gerando imagem…' : '📤 Compartilhar progresso'}
-      </button>
 
       <div className="section-group">
         <div className="section-group__label">Meus dados</div>
@@ -478,7 +422,11 @@ export default function PerfilPage({ active }) {
             />
           </div>
           {!isNotificationSupported() && (
-            <p className="dash-empty">Notificações não são suportadas neste navegador.</p>
+            <p className="dash-empty">
+              {isIosSafariNotInstalled()
+                ? 'No iPhone/iPad, notificações só funcionam depois de instalar o app: toque em Compartilhar → "Adicionar à Tela de Início".'
+                : 'Notificações não são suportadas neste navegador.'}
+            </p>
           )}
           <button
             className="btn btn--outline btn--sm"

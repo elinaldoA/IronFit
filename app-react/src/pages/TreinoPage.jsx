@@ -362,8 +362,10 @@ export default function TreinoPage() {
         const { error } = await db.from('workouts').delete().eq('user_id', user.id).in('workout_date', dates);
         if (error) throw error;
         await syncNow();
+        toast('🧹 Checks e cargas limpos');
       } catch (err) {
         console.error('resetWorkouts:', err);
+        toast('⚠️ Limpou localmente, mas falhou ao sincronizar com o servidor — pode voltar ao reabrir o app');
       }
     }
   }

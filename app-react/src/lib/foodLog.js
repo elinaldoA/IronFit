@@ -43,8 +43,8 @@ export async function addFoodItem(userId, { date, mealName, foodName, quantidade
   return data;
 }
 
-export async function deleteFoodItem(id) {
-  const { error } = await db.from('food_logs').delete().eq('id', id);
+export async function deleteFoodItem(id, userId) {
+  const { error } = await db.from('food_logs').delete().eq('id', id).eq('user_id', userId);
   if (error) throw error;
 }
 
