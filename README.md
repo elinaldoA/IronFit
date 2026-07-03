@@ -68,6 +68,6 @@ npm run build    # build de produção em app-react/dist
 
 ## Deploy
 
-O deploy é automático: qualquer push em `main` que altere `app-react/` ou `supabase/migrations/` dispara o workflow `.github/workflows/deploy.yml`, que aplica migrations pendentes no banco, builda o projeto e publica no GitHub Pages.
+O deploy é automático: qualquer push em `main` que altere arquivos dentro de `app-react/` dispara o workflow `.github/workflows/deploy.yml`, que builda o projeto e publica no GitHub Pages.
 
-Aplicar migrations em CI exige o secret `SUPABASE_ACCESS_TOKEN` (Supabase Dashboard → Account → Access Tokens) configurado no repositório (Settings → Secrets and variables → Actions).
+Migrations do Supabase (`supabase/migrations/`) não são aplicadas em produção automaticamente — rode `supabase db push` localmente (com o CLI já linkado ao projeto) sempre que adicionar uma migration nova.
