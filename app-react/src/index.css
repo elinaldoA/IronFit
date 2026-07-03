@@ -1090,6 +1090,15 @@ body.modal-open { overflow: hidden; }
   letter-spacing: 0.5px;
 }
 
+.dash-card__title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.dash-card__title-row .dash-card__title { margin: 0; }
+
 .dash-card__subtitle {
   font-size: 0.72rem;
   color: var(--text-dim);

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { TODAY_NAME } from '../data/treinoData';
 import { useAuth } from '../context/AuthContext';
 import { useWorkout } from '../context/WorkoutContext';
@@ -58,21 +58,30 @@ function SetRow({ ex, n, day, bump, onRestStart }) {
   const [reps, setReps] = useState(() => localStorage.getItem(`set_${ex.nome}_${n}_reps`) || '');
   const [done, setDone] = useState(() => localStorage.getItem(`set_${ex.nome}_${n}_done`) === 'true');
   const [saved, setSaved] = useState(false);
-  const saveTimer = useRef(null);
+  const cargaSaveTimer = useRef(null);
+  const repsSaveTimer = useRef(null);
+
+  async function flushCarga(val) {
+    if (!user) return;
+    await saveSetState(day.dia, ex.nome, n, { carga: val === '' ? null : parseFloat(val) });
+    setSaved(true);
+    setTimeout(() => setSaved(false), 1200);
+  }
+
+  async function flushReps(val) {
+    if (!user) return;
+    await saveSetState(day.dia, ex.nome, n, { reps: val === '' ? null : parseFloat(val) });
+    setSaved(true);
+    setTimeout(() => setSaved(false), 1200);
+  }
 
   function handleCargaInput(e) {
     const val = e.target.value;
     setCarga(val);
     localStorage.setItem(`set_${ex.nome}_${n}_carga`, val);
     bump();
-    clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(async () => {
-      if (user) {
-        await saveSetState(day.dia, ex.nome, n, { carga: val === '' ? null : parseFloat(val) });
-        setSaved(true);
-        setTimeout(() => setSaved(false), 1200);
-      }
-    }, 800);
+    clearTimeout(cargaSaveTimer.current);
+    cargaSaveTimer.current = setTimeout(() => flushCarga(val), 800);
   }
 
   function handleRepsInput(e) {
@@ -80,15 +89,42 @@ function SetRow({ ex, n, day, bump, onRestStart }) {
     setReps(val);
     localStorage.setItem(`set_${ex.nome}_${n}_reps`, val);
     bump();
-    clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(async () => {
-      if (user) {
-        await saveSetState(day.dia, ex.nome, n, { reps: val === '' ? null : parseFloat(val) });
-        setSaved(true);
-        setTimeout(() => setSaved(false), 1200);
-      }
-    }, 800);
+    clearTimeout(repsSaveTimer.current);
+    repsSaveTimer.current = setTimeout(() => flushReps(val), 800);
   }
+
+  // Ao sair do campo (blur), salva na hora — sem isso, um F5 rápido logo após
+  // digitar pode acontecer antes do debounce de 800ms disparar, perdendo o valor.
+  function handleCargaBlur() {
+    clearTimeout(cargaSaveTimer.current);
+    flushCarga(carga);
+  }
+
+  function handleRepsBlur() {
+    clearTimeout(repsSaveTimer.current);
+    flushReps(reps);
+  }
+
+  // Reload/fechar de aba destrói os setTimeout pendentes antes deles rodarem —
+  // dispara os saves na hora (o fetch com keepalive do client sobrevive ao unload).
+  useEffect(() => {
+    function flushPending() {
+      if (cargaSaveTimer.current) {
+        clearTimeout(cargaSaveTimer.current);
+        flushCarga(carga);
+      }
+      if (repsSaveTimer.current) {
+        clearTimeout(repsSaveTimer.current);
+        flushReps(reps);
+      }
+    }
+    window.addEventListener('pagehide', flushPending);
+    window.addEventListener('beforeunload', flushPending);
+    return () => {
+      window.removeEventListener('pagehide', flushPending);
+      window.removeEventListener('beforeunload', flushPending);
+    };
+  });
 
   async function handleCheck() {
     const next = !done;
@@ -123,12 +159,12 @@ function SetRow({ ex, n, day, bump, onRestStart }) {
       <input
         className={`set-row__carga${saved ? ' saved' : ''}`}
         type="text" inputMode="decimal" placeholder="kg" autoComplete="off"
-        value={carga} onChange={handleCargaInput}
+        value={carga} onChange={handleCargaInput} onBlur={handleCargaBlur}
       />
       <input
         className={`set-row__carga${saved ? ' saved' : ''}`}
         type="text" inputMode="numeric" placeholder="reps" autoComplete="off"
-        value={reps} onChange={handleRepsInput}
+        value={reps} onChange={handleRepsInput} onBlur={handleRepsBlur}
       />
       <button
         type="button"

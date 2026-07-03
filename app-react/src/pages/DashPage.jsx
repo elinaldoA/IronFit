@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { db } from '../lib/supabase';
 import { TODAY_NAME, TODAY_DATE, getMuscleGroupsForDay, getWeeklyGoal } from '../data/treinoData';
 import { useAuth } from '../context/AuthContext';
@@ -194,11 +194,74 @@ export default function DashPage({ active }) {
   const [loading, setLoading] = useState(false);
   const [loadingPR, setLoadingPR] = useState(false);
   const [unlockedBadges, setUnlockedBadges] = useState(new Set());
+  // PRs/streak/conquistas exigem o histórico inteiro de treinos — buscar isso
+  // de novo toda vez que a aba fica ativa fica cada vez mais pesado conforme
+  // o histórico cresce, então só carrega uma vez por sessão (com refresh manual).
+  const hasLoadedAllTimeRef = useRef(false);
 
   const weeklyGoal = getWeeklyGoal(user);
   const day = activePlanDays.find(d => d.dia === TODAY_NAME);
   const todayCompleted = workouts.find(w => w.workout_date === TODAY_DATE)?.completed ?? false;
   const activeGroups = day && todayCompleted ? getMuscleGroupsForDay(day) : new Set();
+
+  const loadAllTimeLogs = useCallback(async () => {
+    if (!user) return;
+    setLoadingPR(true);
+    try {
+      const { data: allWorkouts, error: awErr } = await db
+        .from('workouts')
+        .select('id, workout_date, completed')
+        .eq('user_id', user.id);
+      if (awErr) throw awErr;
+
+      const ids = (allWorkouts || []).map(w => w.id);
+      if (ids.length) {
+        const { data: sets, error: sErr } = await db
+          .from('exercise_sets')
+          .select('exercise_name, carga, reps, workout_id')
+          .in('workout_id', ids)
+          .eq('completed', true)
+          .not('carga', 'is', null);
+        if (sErr) throw sErr;
+
+        const dateMap = Object.fromEntries(allWorkouts.map(w => [w.id, w.workout_date]));
+        setAllTimeLogs((sets || []).map(s => ({ ...s, workout_date: dateMap[s.workout_id] })));
+      } else {
+        setAllTimeLogs([]);
+      }
+
+      const completedWorkouts = (allWorkouts || []).filter(w => w.completed);
+      const streakDays = calcStreak(completedWorkouts.map(w => w.workout_date));
+
+      const [totalFoodLogs, totalPhotos, recipes, weights] = await Promise.all([
+        countFoodLogs(user.id),
+        countPhotos(user.id),
+        fetchRecipes(user.id),
+        fetchWeightLogs(user.id),
+      ]);
+      const { unlockedIds, newlyEarned } = await syncAchievements(user.id, {
+        streakDays,
+        totalTreinos: completedWorkouts.length,
+        totalFoodLogs,
+        totalPhotos,
+        totalRecipes: recipes.length,
+        totalWeightLogs: weights.length,
+      });
+      setUnlockedBadges(unlockedIds);
+      newlyEarned.forEach(b => toast(`🏅 Conquista desbloqueada: ${b.title}`));
+      hasLoadedAllTimeRef.current = true;
+    } catch (err) {
+      console.error('loadAllTimeLogs:', err);
+      toast('⚠️ Erro ao carregar recordes e conquistas');
+    } finally {
+      setLoadingPR(false);
+    }
+  }, [user, toast]);
+
+  function handleRefreshRecords() {
+    hasLoadedAllTimeRef.current = false;
+    loadAllTimeLogs();
+  }
 
   useEffect(() => {
     if (!active || !user || loading) return;
@@ -249,60 +312,8 @@ export default function DashPage({ active }) {
       }
     }
 
-    async function loadAllTimeLogs() {
-      setLoadingPR(true);
-      try {
-        const { data: allWorkouts, error: awErr } = await db
-          .from('workouts')
-          .select('id, workout_date, completed')
-          .eq('user_id', user.id);
-        if (awErr) throw awErr;
-
-        const ids = (allWorkouts || []).map(w => w.id);
-        if (ids.length) {
-          const { data: sets, error: sErr } = await db
-            .from('exercise_sets')
-            .select('exercise_name, carga, reps, workout_id')
-            .in('workout_id', ids)
-            .eq('completed', true)
-            .not('carga', 'is', null);
-          if (sErr) throw sErr;
-
-          const dateMap = Object.fromEntries(allWorkouts.map(w => [w.id, w.workout_date]));
-          setAllTimeLogs((sets || []).map(s => ({ ...s, workout_date: dateMap[s.workout_id] })));
-        } else {
-          setAllTimeLogs([]);
-        }
-
-        const completedWorkouts = (allWorkouts || []).filter(w => w.completed);
-        const streakDays = calcStreak(completedWorkouts.map(w => w.workout_date));
-
-        const [totalFoodLogs, totalPhotos, recipes, weights] = await Promise.all([
-          countFoodLogs(user.id),
-          countPhotos(user.id),
-          fetchRecipes(user.id),
-          fetchWeightLogs(user.id),
-        ]);
-        const { unlockedIds, newlyEarned } = await syncAchievements(user.id, {
-          streakDays,
-          totalTreinos: completedWorkouts.length,
-          totalFoodLogs,
-          totalPhotos,
-          totalRecipes: recipes.length,
-          totalWeightLogs: weights.length,
-        });
-        setUnlockedBadges(unlockedIds);
-        newlyEarned.forEach(b => toast(`🏅 Conquista desbloqueada: ${b.title}`));
-      } catch (err) {
-        console.error('loadAllTimeLogs:', err);
-        toast('⚠️ Erro ao carregar recordes e conquistas');
-      } finally {
-        setLoadingPR(false);
-      }
-    }
-
     loadDashboard();
-    loadAllTimeLogs();
+    if (!hasLoadedAllTimeRef.current) loadAllTimeLogs();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, user]);
 
@@ -419,7 +430,12 @@ export default function DashPage({ active }) {
         </div>
 
         <div className="dash-card">
-          <div className="dash-card__title">Recordes pessoais — maior carga</div>
+          <div className="dash-card__title-row">
+            <div className="dash-card__title">Recordes pessoais — maior carga</div>
+            <button type="button" className="btn btn--outline btn--sm" disabled={loadingPR} onClick={handleRefreshRecords}>
+              🔄
+            </button>
+          </div>
           {loadingPR ? <Skeleton height={100} /> : <PRList logs={allTimeLogs} />}
         </div>
       </div>
