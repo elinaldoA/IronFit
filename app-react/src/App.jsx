@@ -11,6 +11,7 @@ import TopbarProfile from './components/TopbarProfile';
 import BottomNav from './components/BottomNav';
 import TreinoPage from './pages/TreinoPage';
 import DietaPage from './pages/DietaPage';
+import HidratacaoPage from './pages/HidratacaoPage';
 import DashPage from './pages/DashPage';
 import PerfilPage from './pages/PerfilPage';
 import UpdatePrompt from './components/UpdatePrompt';
@@ -43,6 +44,7 @@ function Shell() {
               <main className="pages">
                 {page === 'treino' && <TreinoPage />}
                 {page === 'dieta' && <DietaPage />}
+                {page === 'hidratacao' && <HidratacaoPage active={page === 'hidratacao'} />}
                 {page === 'dash' && <DashPage active={page === 'dash'} />}
                 {page === 'perfil' && <PerfilPage active={page === 'perfil'} />}
               </main>

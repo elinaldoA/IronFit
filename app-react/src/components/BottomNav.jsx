@@ -1,6 +1,7 @@
 const ITEMS = [
   { key: 'treino', label: 'Treino' },
   { key: 'dieta', label: 'Dieta' },
+  { key: 'hidratacao', label: 'Água' },
   { key: 'dash', label: 'Evolução' },
   { key: 'perfil', label: 'Perfil' },
 ];
@@ -17,6 +18,11 @@ const ICONS = {
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M3 2v7c0 1.1.9 2 2 2s2-.9 2-2V2" /><line x1="5" y1="11" x2="5" y2="22" />
       <path d="M21 2v20" /><path d="M21 7H15a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h6" />
+    </svg>
+  ),
+  hidratacao: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2s7 8.5 7 13a7 7 0 0 1-14 0c0-4.5 7-13 7-13z" />
     </svg>
   ),
   dash: (

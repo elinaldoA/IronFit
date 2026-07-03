@@ -2049,6 +2049,7 @@ button.profile-section__title {
 .food-item-row__name { flex: 1; color: var(--text-muted); min-width: 0; }
 .food-item-row__kcal { font-weight: 700; color: var(--text); white-space: nowrap; }
 
+.food-item-row__edit,
 .food-item-row__del {
   width: 20px;
   height: 20px;
@@ -2073,7 +2074,7 @@ button.profile-section__title {
   border-radius: var(--r-md);
 }
 
-.food-add-form__nums { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.food-add-form__nums { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
 .food-add-form__actions { display: flex; gap: 8px; }
 
 /* ============================================================

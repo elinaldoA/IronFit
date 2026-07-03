@@ -43,6 +43,25 @@ export async function addFoodItem(userId, { date, mealName, foodName, quantidade
   return data;
 }
 
+export async function updateFoodItem(id, userId, { foodName, quantidade, kcal, proteina, carboidrato, gordura }) {
+  const { data, error } = await db
+    .from('food_logs')
+    .update({
+      food_name: foodName,
+      quantidade: quantidade || null,
+      kcal: parseFloat(kcal) || 0,
+      proteina: parseFloat(proteina) || 0,
+      carboidrato: parseFloat(carboidrato) || 0,
+      gordura: parseFloat(gordura) || 0,
+    })
+    .eq('id', id)
+    .eq('user_id', userId)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
 export async function deleteFoodItem(id, userId) {
   const { error } = await db.from('food_logs').delete().eq('id', id).eq('user_id', userId);
   if (error) throw error;

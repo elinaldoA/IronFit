@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { getDietaData, getMacroGoals, TODAY_DATE, WATER_STORAGE_KEY } from '../data/treinoData';
+import { getDietaData, getMacroGoals, TODAY_DATE } from '../data/treinoData';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import { useWorkout } from '../context/WorkoutContext';
-import { fetchMealLogs, upsertMealLog, fetchWaterLog, upsertWaterLog } from '../lib/dietaLog';
-import { fetchFoodLogs, addFoodItem, deleteFoodItem } from '../lib/foodLog';
+import { fetchMealLogs, upsertMealLog } from '../lib/dietaLog';
+import { fetchFoodLogs, addFoodItem, updateFoodItem, deleteFoodItem } from '../lib/foodLog';
 import { fetchRecipes } from '../lib/recipes';
 import { enqueue } from '../lib/syncQueue';
 import RecipeModal from '../components/RecipeModal';
@@ -13,31 +13,38 @@ function mealKey(meal) {
   return `dieta_${TODAY_DATE}_${meal.nome}`;
 }
 
-function getWaterMl() {
-  return parseInt(localStorage.getItem(WATER_STORAGE_KEY), 10) || 0;
-}
+function FoodItemRow({ item, onDelete, onEdit, recipes }) {
+  const [editing, setEditing] = useState(false);
 
-function fmtLiters(ml) {
-  return (ml / 1000).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
-}
+  if (editing) {
+    return (
+      <AddFoodForm
+        initial={item}
+        submitLabel="Salvar"
+        recipes={recipes}
+        onAdd={async fields => { await onEdit(item.id, fields); setEditing(false); }}
+        onCancel={() => setEditing(false)}
+      />
+    );
+  }
 
-function FoodItemRow({ item, onDelete }) {
   return (
     <div className="food-item-row">
       <span className="food-item-row__name">{item.food_name}{item.quantidade ? ` · ${item.quantidade}` : ''}</span>
       <span className="food-item-row__kcal">{item.kcal}kcal</span>
+      <button type="button" className="food-item-row__edit" onClick={() => setEditing(true)} aria-label="Editar alimento">✏️</button>
       <button type="button" className="food-item-row__del" onClick={() => onDelete(item.id)} aria-label="Remover alimento">✕</button>
     </div>
   );
 }
 
-function AddFoodForm({ onAdd, onCancel, recipes }) {
-  const [foodName, setFoodName] = useState('');
-  const [quantidade, setQuantidade] = useState('');
-  const [kcal, setKcal] = useState('');
-  const [proteina, setProteina] = useState('');
-  const [carboidrato, setCarboidrato] = useState('');
-  const [gordura, setGordura] = useState('');
+function AddFoodForm({ onAdd, onCancel, recipes, initial, submitLabel }) {
+  const [foodName, setFoodName] = useState(initial?.food_name || '');
+  const [quantidade, setQuantidade] = useState(initial?.quantidade || '');
+  const [kcal, setKcal] = useState(initial?.kcal != null ? String(initial.kcal) : '');
+  const [proteina, setProteina] = useState(initial?.proteina != null ? String(initial.proteina) : '');
+  const [carboidrato, setCarboidrato] = useState(initial?.carboidrato != null ? String(initial.carboidrato) : '');
+  const [gordura, setGordura] = useState(initial?.gordura != null ? String(initial.gordura) : '');
   const [saving, setSaving] = useState(false);
 
   function applyRecipe(recipeId) {
@@ -78,14 +85,14 @@ function AddFoodForm({ onAdd, onCancel, recipes }) {
         <input className="input input--sm" placeholder="Gord." inputMode="decimal" value={gordura} onChange={e => setGordura(e.target.value)} />
       </div>
       <div className="food-add-form__actions">
-        <button type="submit" className="btn btn--primary btn--sm" disabled={saving}>{saving ? 'Salvando…' : 'Adicionar'}</button>
+        <button type="submit" className="btn btn--primary btn--sm" disabled={saving}>{saving ? 'Salvando…' : (submitLabel || 'Adicionar')}</button>
         <button type="button" className="btn btn--ghost btn--sm" onClick={onCancel}>Cancelar</button>
       </div>
     </form>
   );
 }
 
-function MealCard({ meal, bump, user, items, onAddItem, onDeleteItem, recipes }) {
+function MealCard({ meal, bump, user, items, onAddItem, onEditItem, onDeleteItem, recipes }) {
   const toast = useToast();
   const { markPending } = useWorkout();
   const done = localStorage.getItem(mealKey(meal)) === 'true';
@@ -128,7 +135,7 @@ function MealCard({ meal, bump, user, items, onAddItem, onDeleteItem, recipes })
         {items.length > 0 && (
           <div className="food-item-list">
             {items.map(item => (
-              <FoodItemRow key={item.id} item={item} onDelete={onDeleteItem} />
+              <FoodItemRow key={item.id} item={item} onDelete={onDeleteItem} onEdit={onEditItem} recipes={recipes} />
             ))}
           </div>
         )}
@@ -165,28 +172,6 @@ function MealEditRow({ meal, onChange, onRemove }) {
   );
 }
 
-function WaterTracker({ water, goalMl, onAdd, onReset }) {
-  const pct = Math.min(100, (water / goalMl) * 100);
-
-  return (
-    <div className="progress-card">
-      <div className="progress-card__row">
-        <span className="progress-card__label">💧 Hidratação</span>
-        <span className="progress-card__count">{fmtLiters(water)}L / {fmtLiters(goalMl)}L</span>
-      </div>
-      <div className="progress-card__bar">
-        <div className="progress-card__fill progress-card__fill--water" style={{ width: `${pct}%` }} />
-      </div>
-      <div className="water-actions">
-        <button type="button" className="btn btn--outline btn--sm" onClick={() => onAdd(200)}>+200ml</button>
-        <button type="button" className="btn btn--outline btn--sm" onClick={() => onAdd(500)}>+500ml</button>
-        <button type="button" className="btn btn--outline btn--sm" onClick={() => onAdd(-200)}>-200ml</button>
-        <button type="button" className="btn btn--ghost btn--sm" onClick={onReset}>Zerar</button>
-      </div>
-    </div>
-  );
-}
-
 export default function DietaPage() {
   const { user, updateProfile } = useAuth();
   const { markPending } = useWorkout();
@@ -194,7 +179,6 @@ export default function DietaPage() {
   const bump = () => setTick(t => t + 1);
   const toast = useToast();
   const macros = useMemo(() => getMacroGoals(user), [user]);
-  const waterGoalMl = macros.macroAgua * 1000;
 
   const [meals, setMeals] = useState(() => getDietaData(user));
   const [editing, setEditing] = useState(false);
@@ -218,14 +202,12 @@ export default function DietaPage() {
 
     async function loadDietaLogs() {
       try {
-        const [mealLogs, waterMl, items, savedRecipes] = await Promise.all([
+        const [mealLogs, items, savedRecipes] = await Promise.all([
           fetchMealLogs(user.id, TODAY_DATE),
-          fetchWaterLog(user.id, TODAY_DATE),
           fetchFoodLogs(user.id, TODAY_DATE),
           fetchRecipes(user.id),
         ]);
         mealLogs.forEach(m => localStorage.setItem(`dieta_${TODAY_DATE}_${m.meal_name}`, m.completed));
-        if (waterMl !== null) localStorage.setItem(WATER_STORAGE_KEY, waterMl);
         setRecipes(savedRecipes);
         setFoodLogs(items);
         bump();
@@ -240,7 +222,6 @@ export default function DietaPage() {
 
   const done = meals.filter(m => localStorage.getItem(mealKey(m)) === 'true').length;
   const total = meals.length;
-  const water = getWaterMl();
   const consumed = foodLogs.reduce((acc, item) => ({
     kcal: acc.kcal + (parseFloat(item.kcal) || 0),
     proteina: acc.proteina + (parseFloat(item.proteina) || 0),
@@ -262,6 +243,17 @@ export default function DietaPage() {
     } catch (err) {
       console.error('addFoodItem:', err);
       toast('⚠️ Erro ao registrar alimento');
+    }
+  }
+
+  async function handleEditFoodItem(id, item) {
+    try {
+      const updated = await updateFoodItem(id, user.id, item);
+      setFoodLogs(list => list.map(i => (i.id === id ? updated : i)));
+      toast('✏️ Alimento atualizado');
+    } catch (err) {
+      console.error('updateFoodItem:', err);
+      toast('⚠️ Erro ao atualizar alimento');
     }
   }
 
@@ -289,35 +281,6 @@ export default function DietaPage() {
         });
         markPending();
       }
-    }
-  }
-
-  function handleAddWater(deltaMl) {
-    const next = Math.max(0, water + deltaMl);
-    localStorage.setItem(WATER_STORAGE_KEY, next);
-    bump();
-    if (deltaMl > 0 && next >= waterGoalMl && water < waterGoalMl) {
-      toast('🎉 Meta de hidratação do dia atingida!');
-    }
-    if (user) {
-      upsertWaterLog(user.id, TODAY_DATE, next).catch(err => {
-        console.error('upsertWaterLog:', err);
-        enqueue('water_log', { userId: user.id, date: TODAY_DATE, amountMl: next });
-        markPending();
-      });
-    }
-  }
-
-  function handleResetWater() {
-    if (!window.confirm('Zerar a água registrada hoje?')) return;
-    localStorage.removeItem(WATER_STORAGE_KEY);
-    bump();
-    if (user) {
-      upsertWaterLog(user.id, TODAY_DATE, 0).catch(err => {
-        console.error('resetWaterLog:', err);
-        enqueue('water_log', { userId: user.id, date: TODAY_DATE, amountMl: 0 });
-        markPending();
-      });
     }
   }
 
@@ -382,7 +345,6 @@ export default function DietaPage() {
           <button type="button" className="btn btn--ghost btn--sm" title="Receitas salvas" onClick={() => setShowRecipes(true)}>📋 Receitas</button>
         </div>
       </div>
-      <WaterTracker water={water} goalMl={waterGoalMl} onAdd={handleAddWater} onReset={handleResetWater} />
       <div id="macrosGrid" className="macros">
         <div className="macro-card">
           <span className="macro-card__value">{remainingMacros.kcal}</span>
@@ -422,6 +384,7 @@ export default function DietaPage() {
               key={meal.nome} meal={meal} bump={bump} user={user}
               items={foodLogs.filter(f => f.meal_name === meal.nome)}
               onAddItem={handleAddFoodItem}
+              onEditItem={handleEditFoodItem}
               onDeleteItem={handleDeleteFoodItem}
               recipes={recipes}
             />

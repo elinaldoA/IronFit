@@ -6,7 +6,6 @@ import { useWorkout } from '../context/WorkoutContext';
 import { useToast } from '../context/ToastContext';
 import { fmtDate, parseLocalDate, toDateStr, getWeekStart, calcStreak } from '../lib/utils';
 import { estimateOneRepMax } from '../lib/records';
-import { fetchWaterLogsRange } from '../lib/dietaLog';
 import { fetchFoodLogsRange, countFoodLogs } from '../lib/foodLog';
 import { countPhotos } from '../lib/progressPhotos';
 import { fetchRecipes } from '../lib/recipes';
@@ -188,7 +187,6 @@ export default function DashPage({ active }) {
   const [workouts, setWorkouts] = useState([]);
   const [logs, setLogs] = useState([]);
   const [allTimeLogs, setAllTimeLogs] = useState([]);
-  const [waterLogs, setWaterLogs] = useState([]);
   const [foodLogs, setFoodLogs] = useState([]);
   const [selectedExercise, setSelectedExercise] = useState('');
   const [loading, setLoading] = useState(false);
@@ -298,11 +296,7 @@ export default function DashPage({ active }) {
           setLogs([]);
         }
 
-        const [water, food] = await Promise.all([
-          fetchWaterLogsRange(user.id, sinceStr),
-          fetchFoodLogsRange(user.id, sinceStr),
-        ]);
-        setWaterLogs(water);
+        const food = await fetchFoodLogsRange(user.id, sinceStr);
         setFoodLogs(food);
       } catch (err) {
         console.error('loadDashboard:', err);
@@ -339,12 +333,6 @@ export default function DashPage({ active }) {
       .sort((a, b) => a.workout_date.localeCompare(b.workout_date))
       .map(l => ({ value: parseFloat(l.carga), label: fmtDate(l.workout_date) }));
   }, [logs, selectedExercise]);
-
-  const waterPoints = useMemo(() => {
-    return waterLogs
-      .filter(w => Number.isFinite(w.amount_ml))
-      .map(w => ({ value: Math.round(w.amount_ml / 1000 * 10) / 10, label: fmtDate(w.log_date) }));
-  }, [waterLogs]);
 
   const caloriePoints = useMemo(() => {
     const totals = {};
@@ -442,20 +430,6 @@ export default function DashPage({ active }) {
 
       <div className="section-group">
         <div className="section-group__label">Dieta</div>
-
-        <div className="dash-card">
-          <div className="dash-card__title">Água consumida por dia</div>
-          <div className="line-chart-wrap">
-            {loading ? <Skeleton height={130} /> : (
-              <LineChart
-                points={waterPoints}
-                valueSuffix="L"
-                singleMsg={v => `1 dia registrado: ${v}L — registre água em outros dias para ver a evolução`}
-                emptyMsg="Nenhuma água registrada ainda. Registre na aba Dieta."
-              />
-            )}
-          </div>
-        </div>
 
         <div className="dash-card">
           <div className="dash-card__title">Calorias consumidas por dia</div>
