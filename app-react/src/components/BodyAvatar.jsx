@@ -1,3 +1,5 @@
+import bodyAnatomyImg from '../assets/body-anatomy.jpg';
+
 const MUSCLE_LABELS = {
   chest: 'Peitoral',
   shoulders: 'Ombros',
@@ -23,89 +25,67 @@ function Muscle({ active, muscle, as: Tag, ...props }) {
   );
 }
 
-function Limbs({ active }) {
-  return (
-    <>
-      {/* ombro — deltoide */}
-      <Muscle as="ellipse" active={active} muscle="shoulders" cx="60" cy="60" rx="11" ry="9" transform="rotate(-12 60 60)" />
-      <Muscle as="ellipse" active={active} muscle="shoulders" cx="140" cy="60" rx="11" ry="9" transform="rotate(12 140 60)" />
-
-      {/* antebraço e mão — apenas contorno, nao rastreado */}
-      <polygon className="body-outline" points="38,130 54,128 52,196 42,198" />
-      <polygon className="body-outline" points="162,130 146,128 148,196 158,198" />
-      <ellipse className="body-outline" cx="46" cy="207" rx="9" ry="13" />
-      <ellipse className="body-outline" cx="154" cy="207" rx="9" ry="13" />
-
-      {/* panturrilha */}
-      <Muscle as="polygon" active={active} muscle="calves" points="70,298 92,298 88,338 82,373 74,373 68,338" />
-      <Muscle as="polygon" active={active} muscle="calves" points="130,298 108,298 112,338 118,373 126,373 132,338" />
-
-      {/* pe — apenas contorno */}
-      <ellipse className="body-outline" cx="75" cy="380" rx="14" ry="8" />
-      <ellipse className="body-outline" cx="125" cy="380" rx="14" ry="8" />
-    </>
-  );
-}
-
 function FrontView({ active }) {
   return (
-    <svg viewBox="0 0 200 400" className="body-avatar__svg">
-      <circle cx="100" cy="22" r="15" className="body-outline" />
-      <path className="body-outline" d="M93,36 L107,36 L107,50 L93,50 Z" />
+    <div className="body-avatar__view">
+      <img src={bodyAnatomyImg} alt="Frente" className="body-avatar__img-bg body-avatar__img-bg--front" />
+      <svg viewBox="0 0 368 885" className="body-avatar__svg">
+        {/* Ombros (Shoulders / Deltoids) */}
+        <Muscle active={active} muscle="shoulders" as="path" d="M 125,165 C 105,170 95,190 98,225 C 103,240 120,240 130,225 C 135,210 135,175 125,165 Z" />
+        <Muscle active={active} muscle="shoulders" as="path" d="M 243,165 C 263,170 273,190 270,225 C 265,240 248,240 238,225 C 233,210 233,175 243,165 Z" />
 
-      {/* braco superior — biceps */}
-      <Muscle as="polygon" active={active} muscle="biceps" points="47,57 63,54 54,128 38,130" />
-      <Muscle as="polygon" active={active} muscle="biceps" points="153,57 137,54 146,128 162,130" />
+        {/* Peitoral (Chest) */}
+        <Muscle active={active} muscle="chest" as="path" d="M 184,175 C 170,173 140,175 130,190 C 128,210 135,235 184,235 Z" />
+        <Muscle active={active} muscle="chest" as="path" d="M 184,175 C 198,173 228,175 238,190 C 240,210 233,235 184,235 Z" />
 
-      {/* peitoral */}
-      <Muscle as="path" active={active} muscle="chest" d="M100,62 Q82,58 71,68 Q67,86 80,104 Q92,109 100,101 Z" />
-      <Muscle as="path" active={active} muscle="chest" d="M100,62 Q118,58 129,68 Q133,86 120,104 Q108,109 100,101 Z" />
+        {/* Bíceps (Biceps) */}
+        <Muscle active={active} muscle="biceps" as="path" d="M 98,225 C 90,240 85,280 95,305 C 105,310 115,310 120,290 C125,270 125,240 120,225 Z" />
+        <Muscle active={active} muscle="biceps" as="path" d="M 270,225 C 278,240 283,280 273,305 C 263,310 253,310 248,290 C243,270 243,240 248,225 Z" />
 
-      {/* obliquos (agrupados com abdomen) */}
-      <Muscle as="path" active={active} muscle="abs" d="M80,109 Q71,138 77,178 L86,178 L86,109 Z" />
-      <Muscle as="path" active={active} muscle="abs" d="M120,109 Q129,138 123,178 L114,178 L114,109 Z" />
+        {/* Abdômen (Abs / Obliques) */}
+        <Muscle active={active} muscle="abs" as="path" d="M 130,235 L 238,235 C 235,320 220,380 184,420 C 148,380 133,320 130,235 Z" />
 
-      {/* abdomen — 3 fileiras x 2 colunas */}
-      <Muscle as="rect" active={active} muscle="abs" x="84" y="109" width="15" height="20" rx="4" />
-      <Muscle as="rect" active={active} muscle="abs" x="101" y="109" width="15" height="20" rx="4" />
-      <Muscle as="rect" active={active} muscle="abs" x="84" y="133" width="15" height="20" rx="4" />
-      <Muscle as="rect" active={active} muscle="abs" x="101" y="133" width="15" height="20" rx="4" />
-      <Muscle as="rect" active={active} muscle="abs" x="84" y="157" width="15" height="20" rx="4" />
-      <Muscle as="rect" active={active} muscle="abs" x="101" y="157" width="15" height="20" rx="4" />
+        {/* Coxas / Quadríceps (Quads) */}
+        <Muscle active={active} muscle="quads" as="path" d="M 132,430 C 115,460 115,550 148,635 C 158,635 170,625 182,590 C 184,540 184,460 184,430 Z" />
+        <Muscle active={active} muscle="quads" as="path" d="M 236,430 C 253,460 253,550 220,635 C 210,635 198,625 186,590 C 184,540 184,460 184,430 Z" />
 
-      {/* quadriceps */}
-      <Muscle as="polygon" active={active} muscle="quads" points="64,182 98,182 92,296 70,296" />
-      <Muscle as="polygon" active={active} muscle="quads" points="136,182 102,182 108,296 130,296" />
-
-      <Limbs active={active} />
-    </svg>
+        {/* Panturrilhas (Calves) */}
+        <Muscle active={active} muscle="calves" as="path" d="M 148,645 C 128,670 128,750 145,820 L 165,820 C 172,780 172,670 162,645 Z" />
+        <Muscle active={active} muscle="calves" as="path" d="M 220,645 C 240,670 240,750 223,820 L 203,820 C 196,780 196,670 206,645 Z" />
+      </svg>
+    </div>
   );
 }
 
 function BackView({ active }) {
   return (
-    <svg viewBox="0 0 200 400" className="body-avatar__svg">
-      <circle cx="100" cy="22" r="15" className="body-outline" />
-      <path className="body-outline" d="M93,36 L107,36 L107,50 L93,50 Z" />
+    <div className="body-avatar__view">
+      <img src={bodyAnatomyImg} alt="Costas" className="body-avatar__img-bg body-avatar__img-bg--back" />
+      <svg viewBox="0 0 368 885" className="body-avatar__svg">
+        {/* Ombros (Shoulders / Deltoids) */}
+        <Muscle active={active} muscle="shoulders" as="path" d="M 125,165 C 105,170 95,190 98,225 C 103,240 120,240 130,225 C 135,210 135,175 125,165 Z" />
+        <Muscle active={active} muscle="shoulders" as="path" d="M 243,165 C 263,170 273,190 270,225 C 265,240 248,240 238,225 C 233,210 233,175 243,165 Z" />
 
-      {/* braco superior — triceps */}
-      <Muscle as="polygon" active={active} muscle="triceps" points="47,57 63,54 54,128 38,130" />
-      <Muscle as="polygon" active={active} muscle="triceps" points="153,57 137,54 146,128 162,130" />
+        {/* Tríceps (Triceps) */}
+        <Muscle active={active} muscle="triceps" as="path" d="M 98,225 C 90,240 85,280 95,305 C 105,310 115,310 120,290 C125,270 125,240 120,225 Z" />
+        <Muscle active={active} muscle="triceps" as="path" d="M 270,225 C 278,240 283,280 273,305 C 263,310 253,310 248,290 C243,270 243,240 248,225 Z" />
 
-      {/* costas — trapezio + dorsal em V */}
-      <Muscle as="path" active={active} muscle="back" d="M100,38 L132,62 L118,116 L100,99 L82,116 L68,62 Z" />
-      <Muscle as="path" active={active} muscle="back" d="M100,99 L118,116 L111,176 L100,188 L89,176 L82,116 Z" />
+        {/* Costas (Back) */}
+        <Muscle active={active} muscle="back" as="path" d="M 130,175 L 238,175 C 240,240 235,320 184,395 C 133,320 128,240 130,175 Z" />
 
-      {/* gluteos */}
-      <Muscle as="path" active={active} muscle="glutes" d="M67,180 Q66,214 87,221 Q98,223 98,206 L96,180 Z" />
-      <Muscle as="path" active={active} muscle="glutes" d="M133,180 Q134,214 113,221 Q102,223 102,206 L104,180 Z" />
+        {/* Glúteos (Glutes) */}
+        <Muscle active={active} muscle="glutes" as="path" d="M 130,395 C 122,410 122,460 184,475 L 184,395 Z" />
+        <Muscle active={active} muscle="glutes" as="path" d="M 238,395 C 246,410 246,460 184,475 L 184,395 Z" />
 
-      {/* posterior de coxa */}
-      <Muscle as="polygon" active={active} muscle="hamstrings" points="69,223 96,221 92,296 72,296" />
-      <Muscle as="polygon" active={active} muscle="hamstrings" points="131,223 104,221 108,296 128,296" />
+        {/* Posterior de Coxa (Hamstrings) */}
+        <Muscle active={active} muscle="hamstrings" as="path" d="M 130,475 C 122,500 128,570 152,635 L 184,635 L 184,475 Z" />
+        <Muscle active={active} muscle="hamstrings" as="path" d="M 238,475 C 246,500 238,570 216,635 L 184,635 L 184,475 Z" />
 
-      <Limbs active={active} />
-    </svg>
+        {/* Panturrilhas (Calves) */}
+        <Muscle active={active} muscle="calves" as="path" d="M 148,645 C 128,670 128,750 145,820 L 165,820 C 172,780 172,670 162,645 Z" />
+        <Muscle active={active} muscle="calves" as="path" d="M 220,645 C 240,670 240,750 223,820 L 203,820 C 196,780 196,670 206,645 Z" />
+      </svg>
+    </div>
   );
 }
 

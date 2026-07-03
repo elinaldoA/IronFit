@@ -192,6 +192,9 @@ export default function DashPage({ active }) {
   const [loading, setLoading] = useState(false);
   const [loadingPR, setLoadingPR] = useState(false);
   const [unlockedBadges, setUnlockedBadges] = useState(new Set());
+  const [streak, setStreak] = useState(0);
+  const [totalTreinos, setTotalTreinos] = useState(0);
+  const [totalPhotosCount, setTotalPhotosCount] = useState(0);
   // PRs/streak/conquistas exigem o histórico inteiro de treinos — buscar isso
   // de novo toda vez que a aba fica ativa fica cada vez mais pesado conforme
   // o histórico cresce, então só carrega uma vez por sessão (com refresh manual).
@@ -200,7 +203,33 @@ export default function DashPage({ active }) {
   const weeklyGoal = getWeeklyGoal(user);
   const day = activePlanDays.find(d => d.dia === TODAY_NAME);
   const todayCompleted = workouts.find(w => w.workout_date === TODAY_DATE)?.completed ?? false;
-  const activeGroups = day && todayCompleted ? getMuscleGroupsForDay(day) : new Set();
+  
+  const [selectedView, setSelectedView] = useState('today');
+
+  const { viewActiveGroups, selectedSubtitle } = useMemo(() => {
+    if (selectedView === 'today') {
+      const active = day && todayCompleted ? getMuscleGroupsForDay(day) : new Set();
+      const subtitle = day 
+        ? (todayCompleted ? `Foco: ${day.foco}` : `${day.foco} — treino de hoje ainda não concluído (sem marcações)`) 
+        : 'Sem treino planejado para hoje';
+      return { viewActiveGroups: active, selectedSubtitle: subtitle };
+    }
+
+    if (selectedView.startsWith('workout-')) {
+      const wId = selectedView.replace('workout-', '');
+      const w = workouts.find(x => String(x.id) === wId);
+      if (w) {
+        const planDay = activePlanDays.find(d => d.dia === w.day_of_week);
+        const active = w.completed && planDay ? getMuscleGroupsForDay(planDay) : new Set();
+        const subtitle = w.completed 
+          ? `Treino concluído em ${fmtDate(w.workout_date)} (Foco: ${planDay?.foco || 'Geral'})` 
+          : `Treino de ${w.day_of_week} (${fmtDate(w.workout_date)}) não foi concluído (sem marcações)`;
+        return { viewActiveGroups: active, selectedSubtitle: subtitle };
+      }
+    }
+
+    return { viewActiveGroups: new Set(), selectedSubtitle: '–' };
+  }, [selectedView, workouts, activePlanDays, day, todayCompleted]);
 
   const loadAllTimeLogs = useCallback(async () => {
     if (!user) return;
@@ -237,6 +266,11 @@ export default function DashPage({ active }) {
         fetchRecipes(user.id),
         fetchWeightLogs(user.id),
       ]);
+
+      setStreak(streakDays);
+      setTotalTreinos(completedWorkouts.length);
+      setTotalPhotosCount(totalPhotos);
+
       const { unlockedIds, newlyEarned } = await syncAchievements(user.id, {
         streakDays,
         totalTreinos: completedWorkouts.length,
@@ -273,7 +307,7 @@ export default function DashPage({ active }) {
 
         const { data: w, error: wErr } = await db
           .from('workouts')
-          .select('id, workout_date, completed')
+          .select('id, workout_date, completed, day_of_week')
           .eq('user_id', user.id)
           .gte('workout_date', sinceStr)
           .order('workout_date', { ascending: true });
@@ -347,11 +381,30 @@ export default function DashPage({ active }) {
   return (
     <section id="page-dash" className="page active">
       <div className="dash-card">
-        <div className="dash-card__title">Grupos trabalhados hoje</div>
-        <div className="dash-card__subtitle">
-          {day ? (todayCompleted ? day.foco : `${day.foco} — treino ainda não concluído`) : '–'}
+        <div className="dash-card__title-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginBottom: '8px' }}>
+          <div className="dash-card__title" style={{ marginBottom: 0 }}>Visualização Anatômica</div>
+          <select 
+            className="input input--sm" 
+            style={{ width: 'auto', minWidth: '180px', padding: '4px 8px' }} 
+            value={selectedView} 
+            onChange={e => setSelectedView(e.target.value)}
+          >
+            <option value="today">Hoje ({day ? day.dia : 'Sem treino'})</option>
+            {workouts.slice().reverse().map(w => {
+              const planDay = activePlanDays.find(d => d.dia === w.day_of_week);
+              const foco = planDay ? planDay.foco : 'Geral';
+              return (
+                <option key={w.id} value={`workout-${w.id}`}>
+                  {fmtDate(w.workout_date)} - {w.day_of_week} ({w.completed ? foco : 'Não iniciado'})
+                </option>
+              );
+            })}
+          </select>
         </div>
-        <BodyAvatar activeGroups={activeGroups} />
+        <div className="dash-card__subtitle" style={{ marginBottom: '12px' }}>
+          {selectedSubtitle}
+        </div>
+        <BodyAvatar activeGroups={viewActiveGroups} />
       </div>
 
       <div className="section-group">
