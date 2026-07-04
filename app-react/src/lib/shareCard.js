@@ -1,7 +1,7 @@
 import { formatDuration } from './utils';
 import { getMuscleGroupsForDay } from '../data/treinoData';
 import { FRONT_MUSCLE_PATHS, BACK_MUSCLE_PATHS, BODY_VIEW_SIZE } from '../data/bodyMuscleMap';
-import bodyAnatomyImg from '../assets/body-anatomy.jpg';
+import bodyAnatomyImg from '../assets/anatomia.jpg';
 
 // Desenha um card de resumo do treino num canvas offscreen (mesmo padrão de canvas
 // usado em lib/imageUtils.js para compressão de imagem) e retorna um Blob PNG pronto
@@ -10,6 +10,10 @@ const CARD_WIDTH = 1080;
 const PAD_X = 40;
 const CONTENT_W = CARD_WIDTH - PAD_X * 2;
 const WATERMARK_H = 130;
+
+// Tamanho real (em pixels) de cada metade de anatomia.jpg — diferente de
+// BODY_VIEW_SIZE, que é só o espaço de coordenadas usado pelos paths de músculo.
+const BODY_IMG_HALF_SIZE = { width: 350, height: 615 };
 
 const BODY_BOX_W = 220;
 const BODY_BOX_H = Math.round((BODY_BOX_W * BODY_VIEW_SIZE.height) / BODY_VIEW_SIZE.width);
@@ -155,7 +159,7 @@ function drawBodyView(ctx, img, x, y, w, h, srcX, paths, activeGroups, label) {
   ctx.clip();
   ctx.fillStyle = '#e8e8e8';
   ctx.fillRect(x, y, w, h);
-  ctx.drawImage(img, srcX, 0, BODY_VIEW_SIZE.width, BODY_VIEW_SIZE.height, x, y, w, h);
+  ctx.drawImage(img, srcX, 0, BODY_IMG_HALF_SIZE.width, BODY_IMG_HALF_SIZE.height, x, y, w, h);
 
   ctx.translate(x, y);
   ctx.scale(w / BODY_VIEW_SIZE.width, h / BODY_VIEW_SIZE.height);
@@ -195,7 +199,7 @@ async function drawBodyAvatarSection(ctx, x, y, contentW, day) {
   const boxY = y + BODY_TITLE_H;
 
   drawBodyView(ctx, img, startX, boxY, BODY_BOX_W, BODY_BOX_H, 0, FRONT_MUSCLE_PATHS, activeGroups, 'Frente');
-  drawBodyView(ctx, img, startX + BODY_BOX_W + BODY_BOX_GAP, boxY, BODY_BOX_W, BODY_BOX_H, BODY_VIEW_SIZE.width, BACK_MUSCLE_PATHS, activeGroups, 'Costas');
+  drawBodyView(ctx, img, startX + BODY_BOX_W + BODY_BOX_GAP, boxY, BODY_BOX_W, BODY_BOX_H, BODY_IMG_HALF_SIZE.width, BACK_MUSCLE_PATHS, activeGroups, 'Costas');
 }
 
 // Watermark discreto (só a logo) pra identificar o app quando o card circula

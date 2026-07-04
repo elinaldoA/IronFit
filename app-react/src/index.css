@@ -1126,7 +1126,7 @@ body.modal-open { overflow: hidden; }
 .body-avatar__view {
   position: relative;
   width: 140px;
-  aspect-ratio: 368 / 885;
+  aspect-ratio: 204 / 358.5;
   overflow: hidden;
   border-radius: 8px;
   border: 1px solid var(--border-2);

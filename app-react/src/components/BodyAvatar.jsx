@@ -1,4 +1,4 @@
-import bodyAnatomyImg from '../assets/body-anatomy.jpg';
+import bodyAnatomyImg from '../assets/anatomia.jpg';
 import { MUSCLE_LABELS, FRONT_MUSCLE_PATHS, BACK_MUSCLE_PATHS, BODY_VIEW_SIZE } from '../data/bodyMuscleMap';
 
 function cls(active, muscle) {
