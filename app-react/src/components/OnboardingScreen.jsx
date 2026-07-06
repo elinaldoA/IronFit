@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { generatePlan } from '../data/workoutTemplates';
+import { generateMealPlan } from '../data/mealTemplates';
 import { seedGeneratedPlan } from '../lib/workoutPlans';
 
 export default function OnboardingScreen() {
@@ -46,7 +47,8 @@ export default function OnboardingScreen() {
       const generatedDays = generatePlan({ sexo, idade: idadeNum, peso: pesoNum, altura: alturaNum, meta, nivel });
       await seedGeneratedPlan(user.id, generatedDays);
 
-      const { error } = await updateProfile({ sexo, idade: idadeNum, peso: pesoNum, altura: alturaNum, meta, nivel });
+      const generatedMeals = generateMealPlan({ meta });
+      const { error } = await updateProfile({ sexo, idade: idadeNum, peso: pesoNum, altura: alturaNum, meta, nivel, customMeals: generatedMeals });
       if (error) throw error;
     } catch (err) {
       console.error('onboarding:', err);

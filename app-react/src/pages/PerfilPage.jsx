@@ -11,6 +11,7 @@ import { fetchWeightLogs, upsertWeightLog } from '../lib/weightLog';
 import { saveAvatar } from '../lib/avatar';
 import { DEFAULT_MACROS, DEFAULT_WEEKLY_GOAL } from '../data/treinoData';
 import { generatePlan } from '../data/workoutTemplates';
+import { generateMealPlan } from '../data/mealTemplates';
 import { createGeneratedPlan } from '../lib/workoutPlans';
 import { isNotificationSupported, isIosSafariNotInstalled, sendNotification } from '../lib/notifications';
 import { useReminders } from '../hooks/useReminders';
@@ -74,6 +75,7 @@ export default function PerfilPage({ active }) {
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
+  const [regeneratingMeals, setRegeneratingMeals] = useState(false);
 
   async function handleExport(action, label) {
     if (!user || exporting) return;
@@ -185,6 +187,24 @@ export default function PerfilPage({ active }) {
       toast('⚠️ Erro ao gerar novo treino');
     } finally {
       setRegenerating(false);
+    }
+  }
+
+  async function handleRegenerateMeals() {
+    if (!user || regeneratingMeals) return;
+    if (!window.confirm('Isso substitui suas refeições atuais por um novo cardápio baseado no seu objetivo. Continuar?')) return;
+
+    setRegeneratingMeals(true);
+    try {
+      const generatedMeals = generateMealPlan({ meta });
+      const { error } = await updateProfile({ customMeals: generatedMeals });
+      if (error) throw error;
+      toast('✅ Novo cardápio gerado!');
+    } catch (err) {
+      console.error('regenerateMeals:', err);
+      toast('⚠️ Erro ao gerar novo cardápio');
+    } finally {
+      setRegeneratingMeals(false);
     }
   }
 
@@ -448,6 +468,9 @@ export default function PerfilPage({ active }) {
             />
           </div>
           <button className="btn btn--primary btn--full" onClick={handleSaveMacros}>Salvar metas de macros</button>
+          <button className="btn btn--outline btn--full" disabled={regeneratingMeals} onClick={handleRegenerateMeals}>
+            {regeneratingMeals ? 'Gerando novo cardápio…' : '🔄 Gerar novo cardápio com esse objetivo'}
+          </button>
         </div>
       </div>
 
