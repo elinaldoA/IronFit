@@ -16,6 +16,7 @@ export default defineConfig({
       filename: 'sw.js',
       injectManifest: {
         globPatterns: ['**/*.{js,css,html,svg,png,ico}'],
+        globIgnores: ['landing/**'],
       },
       includeAssets: ['icon.svg', 'favicon.svg', 'favicon.ico'],
       manifest: {

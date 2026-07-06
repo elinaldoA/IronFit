@@ -1,0 +1,502 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IronFit — Treino, dieta e evolução em um só app</title>
+  <meta name="description" content="Plano de treino semanal, cardápio com macros e dashboard de evolução física. Grátis, funciona offline e sincroniza na nuvem." />
+  <link rel="canonical" href="https://elinaldoa.github.io/IronFit/landing/" />
+
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="IronFit — Treino, dieta e evolução em um só app" />
+  <meta property="og:description" content="Plano de treino semanal, cardápio com macros e dashboard de evolução física. Grátis, funciona offline e sincroniza na nuvem." />
+  <meta property="og:url" content="https://elinaldoa.github.io/IronFit/landing/" />
+  <meta property="og:image" content="https://elinaldoa.github.io/IronFit/icon-512.png" />
+  <meta name="twitter:card" content="summary" />
+
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml" />
+  <link rel="alternate icon" href="../favicon.ico" />
+  <meta name="theme-color" content="#0e0e12" />
+
+  <style>
+    :root {
+      --bg:           #0e0e12;
+      --surface:      #18181b;
+      --surface-2:    #1c1c21;
+      --border:       #2a2a2e;
+      --text:         #e4e4e7;
+      --text-muted:   #a1a1aa;
+      --text-dim:     #71717a;
+      --primary:      #f97316;
+      --primary-h:    #fb923c;
+      --primary-glow: rgba(249, 115, 22, .18);
+      --success:      #4ade80;
+      --water:        #38bdf8;
+      --error:        #ef4444;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      line-height: 1.5;
+      overflow-x: hidden;
+    }
+    a { color: inherit; }
+    .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px; position: relative; z-index: 1; }
+
+    header.nav {
+      position: sticky; top: 0; z-index: 20;
+      background: rgba(14,14,18,.85);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-inner {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 0;
+    }
+    .logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; text-decoration: none; }
+    .logo img { width: 28px; height: 28px; border-radius: 8px; }
+
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      padding: 13px 24px; border-radius: 10px; font-weight: 700; font-size: 15px;
+      text-decoration: none; border: 1px solid transparent; cursor: pointer;
+      transition: transform .15s ease, background .15s ease, border-color .15s ease, box-shadow .15s ease;
+    }
+    .btn:active { transform: scale(.97); }
+    .btn-primary { background: var(--primary); color: #0e0e12; box-shadow: 0 8px 24px var(--primary-glow); }
+    .btn-primary:hover { background: var(--primary-h); box-shadow: 0 10px 30px rgba(249,115,22,.32); transform: translateY(-1px); }
+    .btn-ghost { background: transparent; color: var(--text); border-color: var(--border); }
+    .btn-ghost:hover { border-color: var(--text-dim); }
+    .btn-sm { padding: 9px 16px; font-size: 14px; box-shadow: none; }
+
+    /* ---------- hero ---------- */
+    .hero { position: relative; padding: 100px 0 40px; text-align: center; }
+    .hero::before, .hero::after {
+      content: ""; position: absolute; width: 560px; height: 560px; border-radius: 50%;
+      filter: blur(70px); z-index: 0; pointer-events: none;
+    }
+    .hero::before { top: -220px; left: -180px; background: radial-gradient(circle, var(--primary-glow) 0%, transparent 70%); }
+    .hero::after { top: -160px; right: -220px; background: radial-gradient(circle, rgba(56,189,248,.14) 0%, transparent 70%); }
+
+    .badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: var(--surface); border: 1px solid var(--border);
+      color: var(--text-muted); font-size: 13px; padding: 6px 14px;
+      border-radius: 999px; margin-bottom: 24px;
+    }
+    .badge .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--success); box-shadow: 0 0 8px var(--success); }
+    h1 {
+      font-size: clamp(34px, 6vw, 58px); line-height: 1.1; margin: 0 0 20px;
+      letter-spacing: -0.03em; font-weight: 800;
+    }
+    h1 .grad {
+      background: linear-gradient(135deg, var(--primary), var(--primary-h));
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
+    .hero p.lead {
+      font-size: clamp(16px, 2vw, 20px); color: var(--text-muted);
+      max-width: 580px; margin: 0 auto 36px;
+    }
+    .hero-actions { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; margin-bottom: 64px; }
+
+    /* ---------- phone mockup ---------- */
+    .mockup-stage { display: flex; justify-content: center; perspective: 1400px; }
+    .mockup {
+      width: 300px; background: var(--surface-2); border: 1px solid var(--border);
+      border-radius: 28px; padding: 14px; box-shadow: 0 30px 60px -20px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.02);
+      transform: rotateX(4deg);
+      transition: transform .4s ease;
+    }
+    .mockup:hover { transform: rotateX(0deg) translateY(-4px); }
+    .mockup-notch { width: 60px; height: 5px; border-radius: 3px; background: var(--border); margin: 0 auto 14px; }
+
+    .mockup-screens {
+      position: relative; aspect-ratio: 290 / 515;
+      border-radius: 18px; overflow: hidden; background: #f4f4f5;
+    }
+    .mockup-screen {
+      position: absolute; inset: 0; opacity: 0; transform: translateX(10px);
+      transition: opacity .5s ease, transform .5s ease; pointer-events: none;
+    }
+    .mockup-screen.active { opacity: 1; transform: none; pointer-events: auto; }
+    .mockup-screen img { width: 100%; height: 100%; object-fit: cover; object-position: top center; display: block; }
+
+    .mockup-tabs { display: flex; justify-content: center; gap: 8px; margin-top: 16px; }
+    .mockup-tab {
+      width: 7px; height: 7px; border-radius: 50%; background: var(--border);
+      border: none; padding: 0; cursor: pointer; transition: background .2s ease, transform .2s ease;
+    }
+    .mockup-tab.active { background: var(--primary); transform: scale(1.3); }
+
+    /* ---------- highlight strip ---------- */
+    .highlights {
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+    }
+    .highlight {
+      display: flex; align-items: center; gap: 10px; justify-content: center;
+      padding: 22px 12px; border-left: 1px solid var(--border); color: var(--text-muted); font-size: 14px; font-weight: 600;
+    }
+    .highlight:first-child { border-left: none; }
+    .highlight svg { color: var(--primary); flex-shrink: 0; }
+
+    section { padding: 88px 0; }
+    .section-head { text-align: center; max-width: 560px; margin: 0 auto 48px; }
+    .section-head h2 { font-size: clamp(26px, 3vw, 36px); margin: 0 0 12px; letter-spacing: -0.02em; }
+    .section-head p { color: var(--text-muted); margin: 0; }
+
+    .features {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;
+    }
+    .card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 16px; padding: 26px;
+      transition: transform .25s ease, border-color .25s ease, box-shadow .25s ease;
+    }
+    .card:hover {
+      transform: translateY(-5px); border-color: rgba(249,115,22,.4);
+      box-shadow: 0 16px 32px -12px rgba(0,0,0,.4);
+    }
+    .icon-badge {
+      width: 44px; height: 44px; border-radius: 12px;
+      background: var(--primary-glow); color: var(--primary);
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 16px;
+    }
+    .card h3 { margin: 0 0 8px; font-size: 17px; }
+    .card p { margin: 0; color: var(--text-muted); font-size: 14.5px; }
+
+    .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .compare-col {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 16px; padding: 28px;
+    }
+    .compare-col.good { border-color: rgba(74,222,128,.35); background: linear-gradient(160deg, var(--surface), rgba(74,222,128,.05)); }
+    .compare-tag {
+      display: inline-block; font-size: 12.5px; font-weight: 700;
+      padding: 4px 12px; border-radius: 999px; margin-bottom: 18px;
+    }
+    .compare-tag.bad { background: rgba(239,68,68,.12); color: #f87171; }
+    .compare-tag.good { background: rgba(74,222,128,.14); color: var(--success); }
+    .compare-col ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 14px; }
+    .compare-col li { position: relative; padding-left: 26px; font-size: 14.5px; color: var(--text-muted); }
+    .compare-col li::before {
+      position: absolute; left: 0; top: 1px; font-weight: 700; font-size: 15px;
+    }
+    .compare-col:not(.good) li::before { content: "×"; color: var(--error); }
+    .compare-col.good li::before { content: "✓"; color: var(--success); }
+    .compare-col.good li { color: var(--text); }
+
+    .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+    .step { position: relative; padding-left: 4px; }
+    .step .num {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 32px; height: 32px; border-radius: 50%; background: var(--surface-2);
+      border: 1px solid var(--border); color: var(--primary); font-weight: 700;
+      font-size: 14px; margin-bottom: 16px;
+    }
+    .step h3 { margin: 0 0 8px; font-size: 16px; }
+    .step p { margin: 0; color: var(--text-muted); font-size: 14.5px; }
+
+    .cta-band {
+      position: relative; overflow: hidden;
+      background: linear-gradient(160deg, var(--surface), var(--surface-2));
+      border: 1px solid var(--border);
+      border-radius: 24px; padding: 64px 32px; text-align: center;
+    }
+    .cta-band::before {
+      content: ""; position: absolute; width: 500px; height: 500px; left: 50%; top: 50%;
+      transform: translate(-50%, -50%); border-radius: 50%;
+      background: radial-gradient(circle, var(--primary-glow) 0%, transparent 70%);
+      filter: blur(50px); z-index: 0;
+    }
+    .cta-band > * { position: relative; z-index: 1; }
+    .cta-band h2 { margin: 0 0 12px; font-size: clamp(24px, 3vw, 32px); }
+    .cta-band p { color: var(--text-muted); margin: 0 0 28px; }
+
+    footer { border-top: 1px solid var(--border); padding: 28px 0; }
+    .footer-inner {
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 12px; color: var(--text-dim); font-size: 13.5px;
+    }
+    footer a { color: var(--text-muted); text-decoration: none; }
+    footer a:hover { color: var(--text); }
+
+    /* ---------- scroll reveal ---------- */
+    .reveal { opacity: 0; transform: translateY(28px); transition: opacity .6s ease, transform .6s ease; }
+    .reveal.visible { opacity: 1; transform: none; }
+    .features .card:nth-child(2) { transition-delay: .06s; }
+    .features .card:nth-child(3) { transition-delay: .12s; }
+    .features .card:nth-child(4) { transition-delay: .18s; }
+    .features .card:nth-child(5) { transition-delay: .24s; }
+    .features .card:nth-child(6) { transition-delay: .3s; }
+    .steps .step:nth-child(2) { transition-delay: .1s; }
+    .steps .step:nth-child(3) { transition-delay: .2s; }
+
+    @media (max-width: 760px) {
+      .features { grid-template-columns: 1fr; }
+      .compare { grid-template-columns: 1fr; }
+      .steps { grid-template-columns: 1fr; }
+      .highlights { grid-template-columns: repeat(2, 1fr); }
+      .highlight:nth-child(2) { border-left: 1px solid var(--border); }
+      .highlight:nth-child(3) { border-left: none; }
+      .hero { padding: 64px 0 32px; }
+      section { padding: 60px 0; }
+      .mockup { width: 260px; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="nav">
+    <div class="wrap nav-inner">
+      <a class="logo" href="#top">
+        <img src="../icon.svg" alt="IronFit" width="28" height="28" />
+        IronFit
+      </a>
+      <a class="btn btn-primary btn-sm" href="../">Abrir app</a>
+    </div>
+  </header>
+
+  <main id="top">
+    <section class="hero">
+      <div class="wrap">
+        <span class="badge"><span class="dot"></span> Grátis · instalável · funciona offline</span>
+        <h1>Pare de treinar sem rumo.<br />Veja sua evolução <span class="grad">acontecer de verdade</span></h1>
+        <p class="lead">
+          Chega de planilha perdida, carga esquecida e dieta no achismo. O IronFit monta
+          seu treino, sua dieta e mostra sua evolução — semana a semana, série a série.
+        </p>
+        <div class="hero-actions">
+          <a class="btn btn-primary" href="../">Abrir o app grátis</a>
+          <a class="btn btn-ghost" href="#features">Ver funcionalidades</a>
+        </div>
+
+        <div class="mockup-stage">
+          <div class="mockup">
+            <div class="mockup-notch"></div>
+            <div class="mockup-screens">
+              <div class="mockup-screen active" data-screen="0">
+                <img src="screenshots/treino.png" alt="Tela de treino do IronFit" loading="eager" />
+              </div>
+              <div class="mockup-screen" data-screen="1">
+                <img src="screenshots/dieta.png" alt="Tela de dieta do IronFit" loading="lazy" />
+              </div>
+              <div class="mockup-screen" data-screen="2">
+                <img src="screenshots/agua.png" alt="Tela de hidratação do IronFit" loading="lazy" />
+              </div>
+              <div class="mockup-screen" data-screen="3">
+                <img src="screenshots/evolucao.png" alt="Tela de evolução do IronFit" loading="lazy" />
+              </div>
+              <div class="mockup-screen" data-screen="4">
+                <img src="screenshots/perfil.png" alt="Tela de perfil do IronFit" loading="lazy" />
+              </div>
+            </div>
+            <div class="mockup-tabs">
+              <button class="mockup-tab active" data-tab="0" aria-label="Treino"></button>
+              <button class="mockup-tab" data-tab="1" aria-label="Dieta"></button>
+              <button class="mockup-tab" data-tab="2" aria-label="Água"></button>
+              <button class="mockup-tab" data-tab="3" aria-label="Evolução"></button>
+              <button class="mockup-tab" data-tab="4" aria-label="Perfil"></button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="highlights">
+      <div class="highlight">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path></svg>
+        Sync automático
+      </div>
+      <div class="highlight">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+        Instalável
+      </div>
+      <div class="highlight">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1l22 22"></path><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"></path><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"></path><path d="M10.71 5.05A16 16 0 0 1 22.58 9"></path><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"></path><path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path><line x1="12" y1="20" x2="12.01" y2="20"></line></svg>
+        Funciona offline
+      </div>
+      <div class="highlight">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41L13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
+        100% grátis
+      </div>
+    </div>
+
+    <section>
+      <div class="wrap">
+        <div class="section-head">
+          <h2>Sua rotina hoje vs. sua rotina com o IronFit</h2>
+          <p>A diferença entre treinar por treinar e treinar com propósito.</p>
+        </div>
+        <div class="compare">
+          <div class="compare-col reveal">
+            <span class="compare-tag bad">Sem plano</span>
+            <ul>
+              <li>Anota a carga no papel ou não anota nada</li>
+              <li>Esquece o que treinou e quanto levantou semana passada</li>
+              <li>Come "no olho", sem saber se bate a meta de proteína</li>
+              <li>Não sabe se está evoluindo de verdade</li>
+            </ul>
+          </div>
+          <div class="compare-col good reveal">
+            <span class="compare-tag good">Com IronFit</span>
+            <ul>
+              <li>Treino do dia pronto, com carga da última vez à vista</li>
+              <li>Cada série concluída fica registrada automaticamente</li>
+              <li>Cardápio com macros calculados pro seu objetivo</li>
+              <li>Gráficos, heatmap e PRs mostram sua evolução real</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="features">
+      <div class="wrap">
+        <div class="section-head">
+          <h2>Tudo que você precisa pra treinar sério</h2>
+          <p>Sem planilha, sem app pago, sem depender de internet.</p>
+        </div>
+        <div class="features">
+          <div class="card reveal">
+            <div class="icon-badge">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+            </div>
+            <h3>Treino semanal</h3>
+            <p>Plano dividido por dia da semana, com séries, repetições, técnica e tempo de descanso por exercício.</p>
+          </div>
+          <div class="card reveal">
+            <div class="icon-badge">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"></path></svg>
+            </div>
+            <h3>Dieta com macros</h3>
+            <p>Cardápio diário com kcal, proteína, carboidrato, gordura e água, personalizado pro seu objetivo.</p>
+          </div>
+          <div class="card reveal">
+            <div class="icon-badge">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+            </div>
+            <h3>Evolução e recordes</h3>
+            <p>Volume por treino, heatmap dos últimos 35 dias, evolução de carga por exercício e seus PRs.</p>
+          </div>
+          <div class="card reveal">
+            <div class="icon-badge">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="7" r="4"></circle><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path></svg>
+            </div>
+            <h3>Perfil e IMC</h3>
+            <p>Dados corporais, cálculo de IMC, meta principal e estatísticas de frequência e sequência de treinos.</p>
+          </div>
+          <div class="card reveal">
+            <div class="icon-badge">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path></svg>
+            </div>
+            <h3>Sync em nuvem</h3>
+            <p>Login por e-mail e dados sincronizados entre celular, tablet e computador automaticamente.</p>
+          </div>
+          <div class="card reveal">
+            <div class="icon-badge">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            </div>
+            <h3>Instalável e offline</h3>
+            <p>Funciona como app instalável no celular, com cache local e sem precisar de internet o tempo todo.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap">
+        <div class="section-head">
+          <h2>Como funciona</h2>
+          <p>Leva menos de 2 minutos pra começar.</p>
+        </div>
+        <div class="steps">
+          <div class="step reveal">
+            <span class="num">1</span>
+            <h3>Crie sua conta</h3>
+            <p>Cadastro rápido por e-mail, sem burocracia.</p>
+          </div>
+          <div class="step reveal">
+            <span class="num">2</span>
+            <h3>Onboarding personalizado</h3>
+            <p>Informe peso, altura e objetivo — o app monta seu treino e cardápio.</p>
+          </div>
+          <div class="step reveal">
+            <span class="num">3</span>
+            <h3>Acompanhe todo dia</h3>
+            <p>Registre suas séries, sua dieta e veja sua evolução crescer.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap">
+        <div class="cta-band reveal">
+          <h2>Pronto pra começar a treinar sério?</h2>
+          <p>Grátis, sem anúncios, funciona offline.</p>
+          <a class="btn btn-primary" href="../">Abrir o IronFit</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap footer-inner">
+      <span>IronFit — Treino &amp; Dieta</span>
+      <a href="../">Abrir app</a>
+    </div>
+  </footer>
+
+  <script>
+    (function () {
+      var screens = document.querySelectorAll('.mockup-screen');
+      var tabs = document.querySelectorAll('.mockup-tab');
+      var current = 0;
+      var timer = null;
+
+      function show(index) {
+        current = index;
+        screens.forEach(function (s, i) { s.classList.toggle('active', i === index); });
+        tabs.forEach(function (t, i) { t.classList.toggle('active', i === index); });
+      }
+
+      function next() { show((current + 1) % screens.length); }
+
+      var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (screens.length && !reduceMotion) {
+        timer = setInterval(next, 3200);
+        var mockup = document.querySelector('.mockup');
+        if (mockup) {
+          mockup.addEventListener('mouseenter', function () { clearInterval(timer); });
+          mockup.addEventListener('mouseleave', function () { timer = setInterval(next, 3200); });
+        }
+      }
+
+      tabs.forEach(function (tab, i) {
+        tab.addEventListener('click', function () {
+          clearInterval(timer);
+          show(i);
+          if (!reduceMotion) timer = setInterval(next, 3200);
+        });
+      });
+    })();
+
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+          io.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.15 });
+    document.querySelectorAll('.reveal').forEach(function (el) { io.observe(el); });
+  </script>
+
+</body>
+</html>
