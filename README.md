@@ -3,6 +3,9 @@
 PWA (Progressive Web App) para acompanhamento de treino, dieta e evolução física, com sincronização em nuvem e uso offline.
 
 🔗 **App em produção:** https://elinaldoa.github.io/IronFit/
+📣 **Landing page:** https://elinaldoa.github.io/IronFit/landing/
+
+<img src="docs/landing-demo.gif" alt="Demonstração das telas de Treino, Dieta, Água, Evolução e Perfil do IronFit" width="280" />
 
 ## Funcionalidades
 
@@ -32,6 +35,8 @@ PWA (Progressive Web App) para acompanhamento de treino, dieta e evolução fís
 ```
 .
 ├── app-react/          # código-fonte do app (React + Vite)
+│   ├── public/
+│   │   └── landing/      # landing page estática de divulgação (/landing)
 │   ├── src/
 │   │   ├── components/  # componentes de UI reutilizáveis
 │   │   ├── context/      # estado global (auth, tema, toast, treino)
