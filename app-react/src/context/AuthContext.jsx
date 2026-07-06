@@ -8,10 +8,26 @@ export function AuthProvider({ children }) {
   const [authLoading, setAuthLoading] = useState(true);
 
   useEffect(() => {
-    db.auth.getSession().then(({ data: { session } }) => {
+    // Sem .catch(), uma falha aqui (comum logo após o reload forçado pelo
+    // service worker no update do PWA, quando rede/sessão ainda estão se
+    // reestabilizando) deixava authLoading travado em true pra sempre — e
+    // como Shell só renderiza o app com authLoading=false, a tela (incluindo
+    // o menu) sumia até fechar e reabrir o app.
+    db.auth.getSession()
+      .then(({ data: { session } }) => {
+        setUser(session ? session.user : null);
+      })
+      .catch(err => {
+        console.error('getSession:', err);
+      })
+      .finally(() => setAuthLoading(false));
+
+    const { data: { subscription } } = db.auth.onAuthStateChange((_event, session) => {
       setUser(session ? session.user : null);
       setAuthLoading(false);
     });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   async function login(email, password) {
