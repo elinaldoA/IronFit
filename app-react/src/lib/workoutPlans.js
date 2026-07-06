@@ -32,7 +32,7 @@ async function insertDaysAndExercises(planId, days) {
   }
 }
 
-async function seedDefaultPlan(userId) {
+async function seedDefaultPlan(userId, days = treinoData) {
   const { data: plan, error } = await db
     .from('workout_plans')
     .insert({ user_id: userId, name: 'Meu plano', is_active: true })
@@ -40,7 +40,32 @@ async function seedDefaultPlan(userId) {
     .single();
   if (error) throw error;
 
-  await insertDaysAndExercises(plan.id, treinoData);
+  await insertDaysAndExercises(plan.id, days);
+  return plan;
+}
+
+// Usado pela tela de onboarding para semear o plano já personalizado
+// (gerado por regras a partir de IMC/objetivo/sexo) assim que o cadastro
+// termina, em vez do plano estático padrão.
+export async function seedGeneratedPlan(userId, generatedDays) {
+  return seedDefaultPlan(userId, generatedDays);
+}
+
+// Usado pela Perfil para regenerar o treino a partir dos dados atuais do
+// usuário. Insere como inativo e só então chama setActivePlan — assim nunca
+// existe mais de um plano ativo ao mesmo tempo (diferente de seedDefaultPlan,
+// que pode inserir direto como ativo porque só roda quando não há nenhum
+// plano ainda).
+export async function createGeneratedPlan(userId, name, generatedDays) {
+  const { data: plan, error } = await db
+    .from('workout_plans')
+    .insert({ user_id: userId, name, is_active: false })
+    .select()
+    .single();
+  if (error) throw error;
+
+  await insertDaysAndExercises(plan.id, generatedDays);
+  await setActivePlan(userId, plan.id);
   return plan;
 }
 

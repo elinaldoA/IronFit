@@ -5,6 +5,7 @@ import { ToastProvider } from './context/ToastContext';
 import { WorkoutProvider } from './context/WorkoutContext';
 import { AvatarProvider } from './context/AvatarContext';
 import AuthScreen from './components/AuthScreen';
+import OnboardingScreen from './components/OnboardingScreen';
 import ThemeToggle from './components/ThemeToggle';
 import UserChip from './components/UserChip';
 import TopbarProfile from './components/TopbarProfile';
@@ -23,12 +24,15 @@ function Shell() {
 
   if (authLoading) return null;
 
+  const needsOnboarding = user && !user.user_metadata?.peso;
+
   return (
     <div className="shell">
       <UpdatePrompt />
       {!user && <AuthScreen />}
+      {user && needsOnboarding && <OnboardingScreen />}
 
-      {user && (
+      {user && !needsOnboarding && (
         <AvatarProvider>
           <WorkoutProvider>
             <ReminderScheduler />

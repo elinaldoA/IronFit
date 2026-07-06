@@ -1,6 +1,15 @@
 export const DAY_NAMES = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
-export const TODAY_NAME = DAY_NAMES[new Date().getDay()];
-export const TODAY_DATE = new Date().toISOString().split('T')[0];
+// Data "de hoje" no fuso de Brasília (America/Sao_Paulo). Usar toISOString()
+// devolveria a data em UTC, que já vira o dia seguinte às 21:00 no horário local
+// (UTC−3) — fazendo o app carimbar os dados no dia de amanhã 3h antes da meia-noite.
+// O servidor (supabase/functions/send-reminders) usa exatamente este mesmo fuso.
+export const TODAY_DATE = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'America/Sao_Paulo',
+  year: 'numeric', month: '2-digit', day: '2-digit',
+}).format(new Date());
+// Nome do dia derivado da MESMA data acima, para não divergir do TODAY_DATE
+// no intervalo 21:00–00:00 (parse como meio-dia local evita salto de fuso).
+export const TODAY_NAME = DAY_NAMES[new Date(TODAY_DATE + 'T12:00:00').getDay()];
 export const WATER_STORAGE_KEY = `agua_${TODAY_DATE}`;
 
 export const treinoData = [
@@ -85,19 +94,70 @@ export const treinoData = [
 
 export const DEFAULT_MACROS = { macroKcal:2600, macroProteina:200, macroCarboidrato:290, macroGordura:70, macroAgua:3.5 };
 
+// Fator de atividade fixo (moderado) — não existe campo de nível de
+// atividade no perfil, então assumimos este valor para todo mundo.
+const ACTIVITY_FACTOR = 1.55;
+
+const META_KCAL_FACTOR = {
+    massa: 1.15,
+    forca: 1.05,
+    emagrecer: 0.80,
+    definicao: 0.90,
+    saude: 1.00,
+};
+
+const META_MACRO_RATIO = {
+    massa: { proteina: 2.0, gordura: 1.0 },
+    forca: { proteina: 2.0, gordura: 1.0 },
+    emagrecer: { proteina: 2.2, gordura: 0.8 },
+    definicao: { proteina: 2.2, gordura: 0.8 },
+    saude: { proteina: 1.6, gordura: 0.9 },
+};
+
+// Mifflin-St Jeor: estima TDEE a partir de peso/altura/idade/sexo, ajusta
+// por objetivo (déficit/superávit) e distribui macros em g/kg de peso.
+function computeMacrosFromProfile(peso, altura, idade, sexo, meta) {
+    const bmr = sexo === 'F'
+        ? 10 * peso + 6.25 * altura - 5 * idade - 161
+        : 10 * peso + 6.25 * altura - 5 * idade + 5;
+    const tdee = bmr * ACTIVITY_FACTOR;
+    const kcal = tdee * (META_KCAL_FACTOR[meta] ?? 1);
+
+    const ratio = META_MACRO_RATIO[meta] ?? META_MACRO_RATIO.saude;
+    const proteina = peso * ratio.proteina;
+    const gordura = peso * ratio.gordura;
+    const carboidrato = Math.max(0, (kcal - proteina * 4 - gordura * 9) / 4);
+
+    return {
+        macroKcal: Math.round(kcal),
+        macroProteina: Math.round(proteina),
+        macroCarboidrato: Math.round(carboidrato),
+        macroGordura: Math.round(gordura),
+        macroAgua: Math.round(peso * 0.035 * 10) / 10,
+    };
+}
+
 export function getMacroGoals(user) {
     const md = user?.user_metadata || {};
+
+    const peso = parseFloat(md.peso);
+    const altura = parseFloat(md.altura);
+    const idade = parseFloat(md.idade);
+    const sexo = md.sexo;
+    const hasProfile = [peso, altura, idade].every(n => Number.isFinite(n) && n > 0) && (sexo === 'M' || sexo === 'F');
+    const computed = hasProfile ? computeMacrosFromProfile(peso, altura, idade, sexo, md.meta) : null;
+
     function num(key, def) {
         const raw = md[key] ?? localStorage.getItem(`profile_${key}`);
         const n = parseFloat(raw);
         return Number.isFinite(n) && n > 0 ? n : def;
     }
     return {
-        macroKcal: num('macroKcal', DEFAULT_MACROS.macroKcal),
-        macroProteina: num('macroProteina', DEFAULT_MACROS.macroProteina),
-        macroCarboidrato: num('macroCarboidrato', DEFAULT_MACROS.macroCarboidrato),
-        macroGordura: num('macroGordura', DEFAULT_MACROS.macroGordura),
-        macroAgua: num('macroAgua', DEFAULT_MACROS.macroAgua),
+        macroKcal: num('macroKcal', computed?.macroKcal ?? DEFAULT_MACROS.macroKcal),
+        macroProteina: num('macroProteina', computed?.macroProteina ?? DEFAULT_MACROS.macroProteina),
+        macroCarboidrato: num('macroCarboidrato', computed?.macroCarboidrato ?? DEFAULT_MACROS.macroCarboidrato),
+        macroGordura: num('macroGordura', computed?.macroGordura ?? DEFAULT_MACROS.macroGordura),
+        macroAgua: num('macroAgua', computed?.macroAgua ?? DEFAULT_MACROS.macroAgua),
     };
 }
 

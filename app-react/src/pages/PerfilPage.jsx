@@ -10,6 +10,8 @@ import { TODAY_DATE } from '../data/treinoData';
 import { fetchWeightLogs, upsertWeightLog } from '../lib/weightLog';
 import { saveAvatar } from '../lib/avatar';
 import { DEFAULT_MACROS, DEFAULT_WEEKLY_GOAL } from '../data/treinoData';
+import { generatePlan } from '../data/workoutTemplates';
+import { createGeneratedPlan } from '../lib/workoutPlans';
 import { isNotificationSupported, isIosSafariNotInstalled, sendNotification } from '../lib/notifications';
 import { useReminders } from '../hooks/useReminders';
 import { exportSummaryCSV, exportBackupJSON, printReport } from '../lib/exportData';
@@ -42,15 +44,18 @@ function metaProgress(pesoAtual, pesoAlvo, weightLogs) {
 export default function PerfilPage({ active }) {
   const { user, logout, updateProfile, updateEmail, updatePassword, deleteAccount } = useAuth();
   const toast = useToast();
-  const { markPending } = useWorkout();
+  const { markPending, refreshPlan } = useWorkout();
 
   const md = user?.user_metadata || {};
   const [nome, setNome] = useState(md.nome || localStorage.getItem('profile_nome') || '');
   const [sobrenome, setSobrenome] = useState(md.sobrenome || localStorage.getItem('profile_sobrenome') || '');
   const [apelido, setApelido] = useState(md.apelido || localStorage.getItem('profile_apelido') || '');
+  const [sexo, setSexo] = useState(md.sexo || localStorage.getItem('profile_sexo') || '');
+  const [idade, setIdade] = useState(md.idade || localStorage.getItem('profile_idade') || '');
   const [peso, setPeso] = useState(md.peso || localStorage.getItem('profile_peso') || '');
   const [altura, setAltura] = useState(md.altura || localStorage.getItem('profile_altura') || '');
   const [meta, setMeta] = useState(md.meta || localStorage.getItem('profile_meta') || 'massa');
+  const [nivel, setNivel] = useState(md.nivel || localStorage.getItem('profile_nivel') || 'intermediario');
   const [pesoAlvo, setPesoAlvo] = useState(md.pesoAlvo || localStorage.getItem('profile_pesoAlvo') || '');
   const [macroKcal, setMacroKcal] = useState(md.macroKcal || localStorage.getItem('profile_macroKcal') || '');
   const [macroProteina, setMacroProteina] = useState(md.macroProteina || localStorage.getItem('profile_macroProteina') || '');
@@ -68,6 +73,7 @@ export default function PerfilPage({ active }) {
   const [accountOpen, setAccountOpen] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
 
   async function handleExport(action, label) {
     if (!user || exporting) return;
@@ -135,11 +141,14 @@ export default function PerfilPage({ active }) {
   }
 
   async function handleSave() {
+    localStorage.setItem('profile_sexo', sexo);
+    localStorage.setItem('profile_idade', idade);
     localStorage.setItem('profile_peso', peso);
     localStorage.setItem('profile_altura', altura);
     localStorage.setItem('profile_meta', meta);
+    localStorage.setItem('profile_nivel', nivel);
     localStorage.setItem('profile_pesoAlvo', pesoAlvo);
-    const { error } = await updateProfile({ peso, altura, meta, pesoAlvo });
+    const { error } = await updateProfile({ sexo, idade, peso, altura, meta, nivel, pesoAlvo });
     if (error) return toast('⚠️ Não foi possível salvar — tente novamente');
 
     if (user && peso) {
@@ -153,6 +162,30 @@ export default function PerfilPage({ active }) {
       }
     }
     toast('Perfil salvo!');
+  }
+
+  async function handleRegeneratePlan() {
+    if (!user || regenerating) return;
+    const pesoNum = parseFloat(peso);
+    const alturaNum = parseFloat(altura);
+    if (!pesoNum || !alturaNum) {
+      toast('⚠️ Preencha peso e altura antes de gerar um novo treino');
+      return;
+    }
+    if (!window.confirm('Isso cria um novo plano de treino com base nos seus dados atuais e o ativa. Seus planos existentes continuam salvos e podem ser reativados em "Editar treino". Continuar?')) return;
+
+    setRegenerating(true);
+    try {
+      const generatedDays = generatePlan({ peso: pesoNum, altura: alturaNum, meta, nivel });
+      await createGeneratedPlan(user.id, `Plano gerado ${new Date().toLocaleDateString('pt-BR')}`, generatedDays);
+      await refreshPlan();
+      toast('✅ Novo treino gerado e ativado!');
+    } catch (err) {
+      console.error('regeneratePlan:', err);
+      toast('⚠️ Erro ao gerar novo treino');
+    } finally {
+      setRegenerating(false);
+    }
   }
 
   async function handleSaveWeeklyGoal() {
@@ -280,6 +313,23 @@ export default function PerfilPage({ active }) {
           <div className="profile-section__title">Meu Corpo</div>
           <div className="profile-section__fields">
             <div className="profile-field">
+              <label className="profile-field__label" htmlFor="profileSexo">Sexo biológico</label>
+              <select id="profileSexo" className="input input--sm" value={sexo} onChange={e => setSexo(e.target.value)}>
+                <option value="" disabled>Selecione</option>
+                <option value="M">Masculino</option>
+                <option value="F">Feminino</option>
+              </select>
+            </div>
+            <div className="profile-field">
+              <label className="profile-field__label" htmlFor="profileIdade">Idade</label>
+              <input
+                type="number" id="profileIdade" className="input input--sm" placeholder="Ex: 28"
+                min="14" max="100" value={idade} onChange={e => setIdade(e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="profile-section__fields">
+            <div className="profile-field">
               <label className="profile-field__label" htmlFor="profilePeso">Peso (kg)</label>
               <input
                 type="number" id="profilePeso" className="input input--sm" placeholder="Ex: 85"
@@ -302,6 +352,14 @@ export default function PerfilPage({ active }) {
               <option value="emagrecer">Emagrecimento</option>
               <option value="definicao">Definição muscular</option>
               <option value="saude">Saúde e bem-estar</option>
+            </select>
+          </div>
+          <div className="profile-field">
+            <label className="profile-field__label" htmlFor="profileNivel">Nível de experiência</label>
+            <select id="profileNivel" className="input input--sm" value={nivel} onChange={e => setNivel(e.target.value)}>
+              <option value="iniciante">Iniciante</option>
+              <option value="intermediario">Intermediário</option>
+              <option value="avancado">Avançado</option>
             </select>
           </div>
           <div className="profile-field">
@@ -331,6 +389,9 @@ export default function PerfilPage({ active }) {
             </div>
           )}
           <button className="btn btn--primary btn--full" onClick={handleSave}>Salvar dados corporais</button>
+          <button className="btn btn--outline btn--full" disabled={regenerating} onClick={handleRegeneratePlan}>
+            {regenerating ? 'Gerando novo treino…' : '🔄 Gerar novo treino com esses dados'}
+          </button>
         </div>
 
         <div className="profile-section">
