@@ -73,7 +73,15 @@ button, input { font-family: inherit; }
    SHELL — frame do app
 ============================================================ */
 .shell {
-  height: 100dvh;
+  /* svh (não dvh) de propósito: dvh recalcula a altura conforme a barra do
+     navegador/gestos do Android aparece ou some, e logo após o reload forçado
+     pelo update do PWA esse recálculo pode ficar "preso" num valor maior que
+     a área realmente visível — empurrando o bottom-nav pra fora da tela (sem
+     como rolar, já que html/body têm overflow:hidden) até fechar e reabrir o
+     app. svh usa sempre a menor altura possível, garantindo que o bottom-nav
+     nunca fique atrás da barra de sistema.
+  */
+  height: 100svh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
