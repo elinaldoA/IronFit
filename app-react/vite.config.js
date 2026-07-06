@@ -4,6 +4,9 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
   base: '/IronFit/',
+  test: {
+    setupFiles: ['./src/test/setupTests.js'],
+  },
   plugins: [
     react(),
     VitePWA({
