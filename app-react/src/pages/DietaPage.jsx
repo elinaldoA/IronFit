@@ -5,7 +5,7 @@ import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import { useWorkout } from '../context/WorkoutContext';
 import { fetchMealLogs, upsertMealLog } from '../lib/dietaLog';
-import { fetchFoodLogs, addFoodItem, updateFoodItem, deleteFoodItem } from '../lib/foodLog';
+import { fetchFoodLogs, addFoodItem, updateFoodItem, deleteFoodItem, setMealEstimate, clearMealEstimate } from '../lib/foodLog';
 import { fetchRecipes } from '../lib/recipes';
 import { enqueue } from '../lib/syncQueue';
 import RecipeModal from '../components/RecipeModal';
@@ -119,6 +119,19 @@ function MealCard({ meal, bump, user, items, onAddItem, onEditItem, onDeleteItem
         console.error('upsertMealLog:', err);
         enqueue('meal_log', { userId: user.id, date: TODAY_DATE, mealName: meal.nome, completed: next });
         markPending();
+      }
+      // Materializa a estimativa em food_logs só quando não há alimento
+      // específico registrado nela — senão o histórico da Evolução duplicaria
+      // a contagem (estimativa + alimento real) daqui pra frente.
+      if (items.length === 0) {
+        try {
+          if (next) await setMealEstimate(user.id, TODAY_DATE, meal);
+          else await clearMealEstimate(user.id, TODAY_DATE, meal.nome);
+        } catch (err) {
+          console.error('mealEstimate:', err);
+          enqueue(next ? 'meal_estimate_set' : 'meal_estimate_clear', { userId: user.id, date: TODAY_DATE, meal, mealName: meal.nome });
+          markPending();
+        }
       }
     }
   }
@@ -310,6 +323,8 @@ export default function DietaPage() {
       const saved = await addFoodItem(user.id, { date: TODAY_DATE, mealName, ...item });
       setFoodLogs(list => list.map(i => (i.id === tempId ? saved : i)));
       toast('🍎 Alimento registrado');
+      // Um alimento real substitui a estimativa da refeição (evita contar as duas coisas).
+      clearMealEstimate(user.id, TODAY_DATE, mealName).catch(err => console.error('clearMealEstimate:', err));
     } catch (err) {
       console.error('addFoodItem:', err);
       enqueue('food_log_add', { userId: user.id, date: TODAY_DATE, mealName, item });
@@ -340,9 +355,21 @@ export default function DietaPage() {
   }
 
   async function handleDeleteFoodItem(id) {
+    const deletedItem = foodLogs.find(i => i.id === id);
     try {
       await deleteFoodItem(id, user.id);
       setFoodLogs(list => list.filter(i => i.id !== id));
+      // Se essa era a última comida específica da refeição e ela já estava
+      // marcada como feita, volta a valer a estimativa (senão o dia fica sem
+      // nada contado, mesmo com a refeição marcada).
+      if (deletedItem) {
+        const remaining = foodLogs.filter(i => i.meal_name === deletedItem.meal_name && i.id !== id);
+        const meal = meals.find(m => m.nome === deletedItem.meal_name);
+        const mealDone = meal && localStorage.getItem(mealKey(meal)) === 'true';
+        if (remaining.length === 0 && mealDone) {
+          setMealEstimate(user.id, TODAY_DATE, meal).catch(err => console.error('setMealEstimate:', err));
+        }
+      }
     } catch (err) {
       console.error('deleteFoodItem:', err);
       setFoodLogs(list => list.filter(i => i.id !== id));

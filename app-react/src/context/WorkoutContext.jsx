@@ -5,7 +5,7 @@ import { getDateForWeekday } from '../lib/utils';
 import { enqueue, flushQueue, queueSize } from '../lib/syncQueue';
 import { upsertMealLog, upsertWaterLog } from '../lib/dietaLog';
 import { upsertWeightLog } from '../lib/weightLog';
-import { addFoodItem, updateFoodItem, deleteFoodItem } from '../lib/foodLog';
+import { addFoodItem, updateFoodItem, deleteFoodItem, setMealEstimate, clearMealEstimate } from '../lib/foodLog';
 import { useAuth } from './AuthContext';
 import { useToast } from './ToastContext';
 
@@ -68,6 +68,12 @@ const SYNC_EXECUTORS = {
   },
   food_log_delete: async ({ id, userId }) => {
     await deleteFoodItem(id, userId);
+  },
+  meal_estimate_set: async ({ userId, date, meal }) => {
+    await setMealEstimate(userId, date, meal);
+  },
+  meal_estimate_clear: async ({ userId, date, mealName }) => {
+    await clearMealEstimate(userId, date, mealName);
   },
 };
 
