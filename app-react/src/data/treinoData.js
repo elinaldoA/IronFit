@@ -161,15 +161,19 @@ export function getMacroGoals(user) {
     };
 }
 
+// kcal/proteina/carboidrato/gordura são estimativas aproximadas (não uma
+// tabela nutricional precisa) — usadas só pra debitar automaticamente do
+// orçamento do dia quando a refeição é marcada como feita sem alimentos
+// específicos registrados nela. Editável em "✏️ Editar refeições".
 export const dietaData = [
-    { horario:'07:30', nome:'☀️ Café da manhã',          descricao:'4 ovos inteiros + 3 claras (mexidos) · 40g aveia · 1 banana · 1 col. mel · Café preto' },
-    { horario:'10:30', nome:'🍏 Lanche da manhã',         descricao:'1 scoop Whey (ou 180g iogurte grego) · 1 maçã · 25g amêndoas' },
-    { horario:'13:00', nome:'🥗 Almoço',                  descricao:'220g frango grelhado · 250g arroz integral ou batata-doce · 200g brócolis · 1 col. azeite' },
-    { horario:'17:30', nome:'⚡ Pré-treino pesado',       descricao:'200g peito de peru/atum · 2 pães integrais · 1 batata-doce média (150g) · 1 banana · 500ml água' },
-    { horario:'19:30', nome:'☕ Pré-treino leve',         descricao:'Café preto (sem açúcar) · 1 scoop Whey (opcional)' },
-    { horario:'20:00', nome:'🏋️ Treino',                 descricao:'Beba <strong>500ml a 1L</strong> de água durante o treino' },
-    { horario:'21:15', nome:'🍽️ Pós-treino / Jantar',    descricao:'200g peixe (salmão/tilápia) ou contra-filé · 250g arroz branco · Salada verde com azeite' },
-    { horario:'23:30', nome:'🥛 Ceia (opcional)',         descricao:'Se bater fome: 2 ovos cozidos ou 1 scoop caseína com água' },
+    { horario:'07:30', nome:'☀️ Café da manhã',          descricao:'4 ovos inteiros + 3 claras (mexidos) · 40g aveia · 1 banana · 1 col. mel · Café preto', kcal:640, proteina:41, carboidrato:70, gordura:23 },
+    { horario:'10:30', nome:'🍏 Lanche da manhã',         descricao:'1 scoop Whey (ou 180g iogurte grego) · 1 maçã · 25g amêndoas', kcal:350, proteina:29, carboidrato:29, gordura:15 },
+    { horario:'13:00', nome:'🥗 Almoço',                  descricao:'220g frango grelhado · 250g arroz integral ou batata-doce · 200g brócolis · 1 col. azeite', kcal:830, proteina:80, carboidrato:74, gordura:26 },
+    { horario:'17:30', nome:'⚡ Pré-treino pesado',       descricao:'200g peito de peru/atum · 2 pães integrais · 1 batata-doce média (150g) · 1 banana · 500ml água', kcal:600, proteina:65, carboidrato:78, gordura:4 },
+    { horario:'19:30', nome:'☕ Pré-treino leve',         descricao:'Café preto (sem açúcar) · 1 scoop Whey (opcional)', kcal:120, proteina:24, carboidrato:3, gordura:2 },
+    { horario:'20:00', nome:'🏋️ Treino',                 descricao:'Beba **500ml a 1L** de água durante o treino', kcal:0, proteina:0, carboidrato:0, gordura:0 },
+    { horario:'21:15', nome:'🍽️ Pós-treino / Jantar',    descricao:'200g peixe (salmão/tilápia) ou contra-filé · 250g arroz branco · Salada verde com azeite', kcal:750, proteina:54, carboidrato:73, gordura:26 },
+    { horario:'23:30', nome:'🥛 Ceia (opcional)',         descricao:'Se bater fome: 2 ovos cozidos ou 1 scoop caseína com água', kcal:140, proteina:12, carboidrato:1, gordura:10 },
 ];
 
 export function getDietaData(user) {

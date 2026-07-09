@@ -1,4 +1,5 @@
 import { db } from './supabase';
+import { parseDecimal } from './utils';
 
 export async function fetchRecipes(userId) {
   const { data, error } = await db
@@ -16,10 +17,10 @@ export async function addRecipe(userId, recipe) {
     .insert({
       user_id: userId,
       name: recipe.name,
-      kcal: parseFloat(recipe.kcal) || 0,
-      proteina: parseFloat(recipe.proteina) || 0,
-      carboidrato: parseFloat(recipe.carboidrato) || 0,
-      gordura: parseFloat(recipe.gordura) || 0,
+      kcal: parseDecimal(recipe.kcal) || 0,
+      proteina: parseDecimal(recipe.proteina) || 0,
+      carboidrato: parseDecimal(recipe.carboidrato) || 0,
+      gordura: parseDecimal(recipe.gordura) || 0,
       ingredientes: recipe.ingredientes?.trim() || null,
     })
     .select()

@@ -5,6 +5,7 @@ import { getDateForWeekday } from '../lib/utils';
 import { enqueue, flushQueue, queueSize } from '../lib/syncQueue';
 import { upsertMealLog, upsertWaterLog } from '../lib/dietaLog';
 import { upsertWeightLog } from '../lib/weightLog';
+import { addFoodItem, updateFoodItem, deleteFoodItem } from '../lib/foodLog';
 import { useAuth } from './AuthContext';
 import { useToast } from './ToastContext';
 
@@ -55,6 +56,18 @@ const SYNC_EXECUTORS = {
   },
   weight_log: async ({ userId, date, peso }) => {
     await upsertWeightLog(userId, date, peso);
+  },
+  // Add/edit/delete de alimentos não são upserts — add pode duplicar se a
+  // escrita original na verdade tiver ido pro banco e só a resposta se
+  // perdeu, mas isso é preferível a perder o registro do usuário de vez.
+  food_log_add: async ({ userId, date, mealName, item }) => {
+    await addFoodItem(userId, { date, mealName, ...item });
+  },
+  food_log_edit: async ({ id, userId, item }) => {
+    await updateFoodItem(id, userId, item);
+  },
+  food_log_delete: async ({ id, userId }) => {
+    await deleteFoodItem(id, userId);
   },
 };
 

@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useWorkout } from '../context/WorkoutContext';
 import { fetchWaterLog, upsertWaterLog, fetchWaterLogsRange } from '../lib/dietaLog';
 import { enqueue } from '../lib/syncQueue';
-import { fmtDate } from '../lib/utils';
+import { fmtDate, parseLocalDate, toDateStr } from '../lib/utils';
 import LineChart from '../components/LineChart';
 
 function getWaterMl() {
@@ -40,9 +40,12 @@ export default function HidratacaoPage({ active }) {
     async function load() {
       setLoading(true);
       try {
-        const since = new Date();
+        // Ancora em TODAY_DATE (fuso de Brasília), não em `new Date()` local +
+        // toISOString() (UTC) — evita que a janela de 60 dias fique um dia
+        // deslocada dependendo do fuso/horário do navegador.
+        const since = parseLocalDate(TODAY_DATE);
         since.setDate(since.getDate() - 59);
-        const sinceStr = since.toISOString().split('T')[0];
+        const sinceStr = toDateStr(since);
 
         const [todayMl, history] = await Promise.all([
           fetchWaterLog(user.id, TODAY_DATE),

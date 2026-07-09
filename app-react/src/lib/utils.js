@@ -59,6 +59,37 @@ export function parseRestSeconds(descanso) {
   return 0;
 }
 
+// parseFloat trunca em vírgula ("12,5" -> 12) — aceita decimal em formato pt-BR.
+export function parseDecimal(str) {
+  if (typeof str !== 'string') return parseFloat(str);
+  return parseFloat(str.replace(',', '.'));
+}
+
+// Quanto uma refeição contribui pro total consumido do dia: se tem alimentos
+// específicos registrados nela, usa a soma desses (mais preciso); senão, se
+// foi marcada como feita, usa a estimativa da própria refeição; senão, nada.
+// Evita contar duas vezes quando o usuário registra o que realmente comeu.
+export function mealMacroContribution(meal, items, done) {
+  const zero = { kcal: 0, proteina: 0, carboidrato: 0, gordura: 0 };
+  if (items.length > 0) {
+    return items.reduce((acc, item) => ({
+      kcal: acc.kcal + (parseFloat(item.kcal) || 0),
+      proteina: acc.proteina + (parseFloat(item.proteina) || 0),
+      carboidrato: acc.carboidrato + (parseFloat(item.carboidrato) || 0),
+      gordura: acc.gordura + (parseFloat(item.gordura) || 0),
+    }), zero);
+  }
+  if (done) {
+    return {
+      kcal: parseFloat(meal.kcal) || 0,
+      proteina: parseFloat(meal.proteina) || 0,
+      carboidrato: parseFloat(meal.carboidrato) || 0,
+      gordura: parseFloat(meal.gordura) || 0,
+    };
+  }
+  return zero;
+}
+
 // Extrai o teto numérico de uma faixa de reps ("8-10" -> 10, "12" -> 12).
 // Retorna null pra texto sem faixa numérica clara ("até a falha", "45s", cardio).
 export function parseRepCeiling(repsStr) {

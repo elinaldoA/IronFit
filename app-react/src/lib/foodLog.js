@@ -1,4 +1,5 @@
 import { db } from './supabase';
+import { parseDecimal } from './utils';
 
 export async function fetchFoodLogs(userId, date) {
   const { data, error } = await db
@@ -32,10 +33,10 @@ export async function addFoodItem(userId, { date, mealName, foodName, quantidade
       meal_name: mealName || null,
       food_name: foodName,
       quantidade: quantidade || null,
-      kcal: parseFloat(kcal) || 0,
-      proteina: parseFloat(proteina) || 0,
-      carboidrato: parseFloat(carboidrato) || 0,
-      gordura: parseFloat(gordura) || 0,
+      kcal: parseDecimal(kcal) || 0,
+      proteina: parseDecimal(proteina) || 0,
+      carboidrato: parseDecimal(carboidrato) || 0,
+      gordura: parseDecimal(gordura) || 0,
     })
     .select()
     .single();
@@ -49,10 +50,10 @@ export async function updateFoodItem(id, userId, { foodName, quantidade, kcal, p
     .update({
       food_name: foodName,
       quantidade: quantidade || null,
-      kcal: parseFloat(kcal) || 0,
-      proteina: parseFloat(proteina) || 0,
-      carboidrato: parseFloat(carboidrato) || 0,
-      gordura: parseFloat(gordura) || 0,
+      kcal: parseDecimal(kcal) || 0,
+      proteina: parseDecimal(proteina) || 0,
+      carboidrato: parseDecimal(carboidrato) || 0,
+      gordura: parseDecimal(gordura) || 0,
     })
     .eq('id', id)
     .eq('user_id', userId)

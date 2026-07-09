@@ -205,7 +205,12 @@ export default function PerfilPage({ active }) {
     setRegeneratingMeals(true);
     try {
       const generatedMeals = generateMealPlan({ meta });
-      const { error } = await updateProfile({ customMeals: generatedMeals });
+      // Persiste `meta` junto com o cardápio: sem isso, as metas de macro
+      // (getMacroGoals) continuam calculadas pro objetivo salvo anteriormente,
+      // contradizendo o cardápio recém-gerado se o usuário trocou o select
+      // sem clicar em "Salvar dados corporais" antes de regenerar.
+      localStorage.setItem('profile_meta', meta);
+      const { error } = await updateProfile({ meta, customMeals: generatedMeals });
       if (error) throw error;
       toast('✅ Novo cardápio gerado!');
     } catch (err) {

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { getDietaData, getMacroGoals, TODAY_DATE } from '../data/treinoData';
+import { parseDecimal, mealMacroContribution } from '../lib/utils';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import { useWorkout } from '../context/WorkoutContext';
@@ -11,6 +12,14 @@ import RecipeModal from '../components/RecipeModal';
 
 function mealKey(meal) {
   return `dieta_${TODAY_DATE}_${meal.nome}`;
+}
+
+// Escapa tudo e só então reabre `**negrito**` — texto de refeição é editável
+// pelo usuário, então nunca pode virar HTML/script arbitrário na tela de outra pessoa.
+function descHtml(text) {
+  const escaped = String(text ?? '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return { __html: escaped.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>') };
 }
 
 function FoodItemRow({ item, onDelete, onEdit, recipes }) {
@@ -130,7 +139,12 @@ function MealCard({ meal, bump, user, items, onAddItem, onEditItem, onDeleteItem
       <div className="meal-card__time">{meal.horario}</div>
       <div className="meal-card__body">
         <div className="meal-card__name">{meal.nome}</div>
-        <div className="meal-card__desc" dangerouslySetInnerHTML={{ __html: meal.descricao }} />
+        <div className="meal-card__desc" dangerouslySetInnerHTML={descHtml(meal.descricao)} />
+        {Number(meal.kcal) > 0 && items.length === 0 && (
+          <p className="meal-card__estimate">
+            {done ? `✅ ${Math.round(meal.kcal)}kcal debitadas (estimativa)` : `≈${Math.round(meal.kcal)}kcal se marcar como feita`}
+          </p>
+        )}
 
         {items.length > 0 && (
           <div className="food-item-list">
@@ -167,6 +181,25 @@ function MealEditRow({ meal, onChange, onRemove }) {
         className="input input--sm" placeholder="Descrição" rows={2} value={meal.descricao}
         onChange={e => onChange({ ...meal, descricao: e.target.value })}
       />
+      <p className="meal-edit-row__hint">Estimativa usada pra debitar do orçamento quando marcar como feita (sem alimentos registrados nela):</p>
+      <div className="food-add-form__nums">
+        <input
+          className="input input--sm" placeholder="Kcal" inputMode="decimal" value={meal.kcal ?? ''}
+          onChange={e => onChange({ ...meal, kcal: e.target.value })}
+        />
+        <input
+          className="input input--sm" placeholder="Prot." inputMode="decimal" value={meal.proteina ?? ''}
+          onChange={e => onChange({ ...meal, proteina: e.target.value })}
+        />
+        <input
+          className="input input--sm" placeholder="Carb." inputMode="decimal" value={meal.carboidrato ?? ''}
+          onChange={e => onChange({ ...meal, carboidrato: e.target.value })}
+        />
+        <input
+          className="input input--sm" placeholder="Gord." inputMode="decimal" value={meal.gordura ?? ''}
+          onChange={e => onChange({ ...meal, gordura: e.target.value })}
+        />
+      </div>
       <button type="button" className="btn btn--ghost btn--sm" onClick={onRemove}>Remover</button>
     </div>
   );
@@ -186,6 +219,10 @@ export default function DietaPage() {
   const [foodLogs, setFoodLogs] = useState([]);
   const [recipes, setRecipes] = useState([]);
   const [showRecipes, setShowRecipes] = useState(false);
+  // Enquanto não carrega (ou falha), foodLogs fica vazio — sem essa flag os
+  // macros restantes mostravam o orçamento cheio como se nada tivesse sido
+  // comido ainda, mesmo quando na verdade é só a busca que falhou/está em andamento.
+  const [logsLoaded, setLogsLoaded] = useState(false);
 
   async function refreshRecipes() {
     if (!user) return;
@@ -210,6 +247,7 @@ export default function DietaPage() {
         mealLogs.forEach(m => localStorage.setItem(`dieta_${TODAY_DATE}_${m.meal_name}`, m.completed));
         setRecipes(savedRecipes);
         setFoodLogs(items);
+        setLogsLoaded(true);
         bump();
       } catch (err) {
         console.error('loadDietaLogs:', err);
@@ -220,40 +258,84 @@ export default function DietaPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
+  // Alimentos registrados sob um nome de refeição que não existe mais (editado
+  // ou substituído por "Gerar novo cardápio") ficariam invisíveis — e ainda
+  // assim contam pro total consumido, então precisam aparecer em algum lugar.
+  const mealNames = useMemo(() => new Set(meals.map(m => m.nome)), [meals]);
+  const orphanItems = foodLogs.filter(f => !mealNames.has(f.meal_name));
+
   const done = meals.filter(m => localStorage.getItem(mealKey(m)) === 'true').length;
   const total = meals.length;
-  const consumed = foodLogs.reduce((acc, item) => ({
-    kcal: acc.kcal + (parseFloat(item.kcal) || 0),
-    proteina: acc.proteina + (parseFloat(item.proteina) || 0),
-    carboidrato: acc.carboidrato + (parseFloat(item.carboidrato) || 0),
-    gordura: acc.gordura + (parseFloat(item.gordura) || 0),
-  }), { kcal: 0, proteina: 0, carboidrato: 0, gordura: 0 });
+  function sumMacros(acc, m) {
+    return {
+      kcal: acc.kcal + (parseFloat(m.kcal) || 0),
+      proteina: acc.proteina + (parseFloat(m.proteina) || 0),
+      carboidrato: acc.carboidrato + (parseFloat(m.carboidrato) || 0),
+      gordura: acc.gordura + (parseFloat(m.gordura) || 0),
+    };
+  }
+  // Por refeição: alimentos registrados (mais preciso) OU, se nenhum foi
+  // registrado e a refeição foi marcada como feita, a estimativa dela —
+  // nunca os dois juntos, senão contaria a mesma comida duas vezes.
+  const consumed = meals.reduce((acc, meal) => {
+    const items = foodLogs.filter(f => f.meal_name === meal.nome);
+    const mealDone = localStorage.getItem(mealKey(meal)) === 'true';
+    return sumMacros(acc, mealMacroContribution(meal, items, mealDone));
+  }, orphanItems.reduce(sumMacros, { kcal: 0, proteina: 0, carboidrato: 0, gordura: 0 }));
+  // Antes ficava em 0 assim que o macro era excedido, sem indicar o quanto —
+  // agora guarda o excedente pra exibir "+Xg excedido" em vez de esconder.
+  function macroRemaining(goal, value) {
+    const diff = Math.round(goal - value);
+    return diff >= 0 ? { value: diff, over: false } : { value: -diff, over: true };
+  }
   const remainingMacros = {
-    kcal: Math.max(0, Math.round(macros.macroKcal - consumed.kcal)),
-    proteina: Math.max(0, Math.round(macros.macroProteina - consumed.proteina)),
-    carboidrato: Math.max(0, Math.round(macros.macroCarboidrato - consumed.carboidrato)),
-    gordura: Math.max(0, Math.round(macros.macroGordura - consumed.gordura)),
+    kcal: macroRemaining(macros.macroKcal, consumed.kcal),
+    proteina: macroRemaining(macros.macroProteina, consumed.proteina),
+    carboidrato: macroRemaining(macros.macroCarboidrato, consumed.carboidrato),
+    gordura: macroRemaining(macros.macroGordura, consumed.gordura),
   };
 
   async function handleAddFoodItem(mealName, item) {
+    // Otimista: o item aparece na hora com um id temporário. Se a escrita
+    // falhar, fica enfileirado — sem isso, uma falha de rede apagava o que
+    // o usuário acabou de digitar sem deixar rastro nenhum na tela.
+    const tempId = `pending_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    const optimistic = {
+      id: tempId, meal_name: mealName, food_name: item.foodName, quantidade: item.quantidade || null,
+      kcal: parseDecimal(item.kcal) || 0, proteina: parseDecimal(item.proteina) || 0,
+      carboidrato: parseDecimal(item.carboidrato) || 0, gordura: parseDecimal(item.gordura) || 0,
+    };
+    setFoodLogs(list => [...list, optimistic]);
     try {
       const saved = await addFoodItem(user.id, { date: TODAY_DATE, mealName, ...item });
-      setFoodLogs(list => [...list, saved]);
+      setFoodLogs(list => list.map(i => (i.id === tempId ? saved : i)));
       toast('🍎 Alimento registrado');
     } catch (err) {
       console.error('addFoodItem:', err);
-      toast('⚠️ Erro ao registrar alimento');
+      enqueue('food_log_add', { userId: user.id, date: TODAY_DATE, mealName, item });
+      markPending();
+      toast('📶 Sem conexão — alimento salvo localmente e sincronizado quando voltar');
     }
   }
 
   async function handleEditFoodItem(id, item) {
+    const patch = {
+      food_name: item.foodName, quantidade: item.quantidade || null,
+      kcal: parseDecimal(item.kcal) || 0, proteina: parseDecimal(item.proteina) || 0,
+      carboidrato: parseDecimal(item.carboidrato) || 0, gordura: parseDecimal(item.gordura) || 0,
+    };
     try {
       const updated = await updateFoodItem(id, user.id, item);
       setFoodLogs(list => list.map(i => (i.id === id ? updated : i)));
       toast('✏️ Alimento atualizado');
     } catch (err) {
       console.error('updateFoodItem:', err);
-      toast('⚠️ Erro ao atualizar alimento');
+      // Aplica a edição localmente mesmo assim (update por id é idempotente,
+      // então reexecutar depois é seguro) — melhor que fingir que nada mudou.
+      setFoodLogs(list => list.map(i => (i.id === id ? { ...i, ...patch } : i)));
+      enqueue('food_log_edit', { id, userId: user.id, item });
+      markPending();
+      toast('📶 Sem conexão — edição salva localmente e sincronizada quando voltar');
     }
   }
 
@@ -263,7 +345,10 @@ export default function DietaPage() {
       setFoodLogs(list => list.filter(i => i.id !== id));
     } catch (err) {
       console.error('deleteFoodItem:', err);
-      toast('⚠️ Erro ao remover alimento');
+      setFoodLogs(list => list.filter(i => i.id !== id));
+      enqueue('food_log_delete', { id, userId: user.id });
+      markPending();
+      toast('📶 Sem conexão — remoção será sincronizada quando voltar');
     }
   }
 
@@ -298,13 +383,37 @@ export default function DietaPage() {
   }
 
   function addDraftMeal() {
-    setDraft(d => [...d, { horario: '12:00', nome: 'Nova refeição', descricao: '' }]);
+    setDraft(d => {
+      const names = new Set(d.map(m => m.nome));
+      let nome = 'Nova refeição';
+      let i = 2;
+      while (names.has(nome)) nome = `Nova refeição ${i++}`;
+      return [...d, { horario: '12:00', nome, descricao: '', kcal: '', proteina: '', carboidrato: '', gordura: '' }];
+    });
   }
 
   async function handleSaveMeals() {
     const cleaned = draft
       .filter(m => m.nome.trim() && m.horario.trim())
+      .map(m => ({
+        ...m,
+        kcal: parseDecimal(String(m.kcal ?? '')) || 0,
+        proteina: parseDecimal(String(m.proteina ?? '')) || 0,
+        carboidrato: parseDecimal(String(m.carboidrato ?? '')) || 0,
+        gordura: parseDecimal(String(m.gordura ?? '')) || 0,
+      }))
       .sort((a, b) => a.horario.localeCompare(b.horario));
+    // Nomes duplicados colidem: mesma chave de "concluída" no localStorage,
+    // mesma linha no upsert de diet_logs (chave única user+data+nome) e os
+    // alimentos registrados de uma aparecem duplicados na outra.
+    const seen = new Set();
+    const dupes = new Set();
+    cleaned.forEach(m => {
+      if (seen.has(m.nome)) dupes.add(m.nome);
+      seen.add(m.nome);
+    });
+    if (dupes.size) return toast(`⚠️ Nomes repetidos: ${[...dupes].join(', ')} — renomeie antes de salvar`);
+
     const { error } = await updateProfile({ customMeals: cleaned });
     if (error) return toast('⚠️ Não foi possível salvar — tente novamente');
     setMeals(cleaned);
@@ -345,24 +454,30 @@ export default function DietaPage() {
           <button type="button" className="btn btn--ghost btn--sm" title="Receitas salvas" onClick={() => setShowRecipes(true)}>📋 Receitas</button>
         </div>
       </div>
-      <div id="macrosGrid" className="macros">
-        <div className="macro-card">
-          <span className="macro-card__value">{remainingMacros.kcal}</span>
-          <span className="macro-card__label">Kcal restantes</span>
+      {!user || logsLoaded ? (
+        <div id="macrosGrid" className="macros">
+          <div className={`macro-card${remainingMacros.kcal.over ? ' macro-card--over' : ''}`}>
+            <span className="macro-card__value">{remainingMacros.kcal.value}</span>
+            <span className="macro-card__label">{remainingMacros.kcal.over ? 'Kcal excedidas' : 'Kcal restantes'}</span>
+          </div>
+          <div className={`macro-card${remainingMacros.proteina.over ? ' macro-card--over' : ''}`}>
+            <span className="macro-card__value">{remainingMacros.proteina.value}g</span>
+            <span className="macro-card__label">{remainingMacros.proteina.over ? 'Proteína excedida' : 'Proteína restante'}</span>
+          </div>
+          <div className={`macro-card${remainingMacros.carboidrato.over ? ' macro-card--over' : ''}`}>
+            <span className="macro-card__value">{remainingMacros.carboidrato.value}g</span>
+            <span className="macro-card__label">{remainingMacros.carboidrato.over ? 'Carbo excedido' : 'Carbo restante'}</span>
+          </div>
+          <div className={`macro-card${remainingMacros.gordura.over ? ' macro-card--over' : ''}`}>
+            <span className="macro-card__value">{remainingMacros.gordura.value}g</span>
+            <span className="macro-card__label">{remainingMacros.gordura.over ? 'Gordura excedida' : 'Gordura restante'}</span>
+          </div>
         </div>
-        <div className="macro-card">
-          <span className="macro-card__value">{remainingMacros.proteina}g</span>
-          <span className="macro-card__label">Proteína restante</span>
+      ) : (
+        <div id="macrosGrid" className="macros">
+          {Array.from({ length: 4 }, (_, i) => <div key={i} className="skeleton" style={{ height: 64 }} />)}
         </div>
-        <div className="macro-card">
-          <span className="macro-card__value">{remainingMacros.carboidrato}g</span>
-          <span className="macro-card__label">Carbo restante</span>
-        </div>
-        <div className="macro-card">
-          <span className="macro-card__value">{remainingMacros.gordura}g</span>
-          <span className="macro-card__label">Gordura restante</span>
-        </div>
-      </div>
+      )}
       {editing ? (
         <div className="meal-edit-list">
           {draft.map((meal, i) => (
@@ -389,6 +504,21 @@ export default function DietaPage() {
               recipes={recipes}
             />
           ))}
+        </div>
+      )}
+      {!editing && orphanItems.length > 0 && (
+        <div className="section-group">
+          <div className="section-group__label">Outros registros de hoje</div>
+          <p className="toolbar__hint">Alimentos de refeições renomeadas ou removidas — ainda contam no total.</p>
+          <div className="meal-card">
+            <div className="meal-card__body">
+              <div className="food-item-list">
+                {orphanItems.map(item => (
+                  <FoodItemRow key={item.id} item={item} onDelete={handleDeleteFoodItem} onEdit={handleEditFoodItem} recipes={recipes} />
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
       )}
       {showRecipes && (
