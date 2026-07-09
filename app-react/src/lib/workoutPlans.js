@@ -1,5 +1,17 @@
 import { db } from './supabase';
-import { treinoData } from '../data/treinoData';
+import { treinoData, TODAY_DATE } from '../data/treinoData';
+import { parseLocalDate, toDateStr } from './utils';
+import { evaluateCycleEvolution } from './planEvolution';
+
+// Ciclo positivo antecipa o próximo (mais 1 semana livre pra "subir de nível"
+// mais rápido); negativo estende (mais tempo pra consolidar antes de avançar).
+const DURATION_ADJUST_WEEKS = { positivo: -1, neutro: 0, negativo: 2 };
+
+function addWeeks(dateStr, weeks) {
+  const d = parseLocalDate(dateStr);
+  d.setDate(d.getDate() + weeks * 7);
+  return toDateStr(d);
+}
 
 function exercisesToRows(planDayId, day) {
   return [
@@ -113,10 +125,38 @@ export async function fetchPlanDays(planId) {
   }));
 }
 
-export async function fetchActivePlan(userId) {
+const PLAN_CYCLE_FIELDS = 'id, name, created_at, start_date, end_date, duration_weeks, next_plan_id, regression_plan_id';
+
+// Quando o ciclo do plano ativo venceu: avalia a evolução (exercícios do
+// plano, peso vs objetivo, aderência, desconforto/lesão) e ativa o sucessor
+// correspondente (progressão ou recuperação), ajustando a duração do próximo
+// ciclo pra cima/baixo conforme o veredito. Sem sucessor configurado pro
+// veredito obtido, não faz nada — o plano fica vencido até o usuário escolher
+// manualmente no editor de planos.
+async function applyPlanExpiry(userId, plan, days, meta) {
+  const evaluation = await evaluateCycleEvolution(userId, plan, days, meta);
+  const successorId = evaluation.verdict === 'negativo' ? plan.regression_plan_id : plan.next_plan_id;
+  if (!successorId) return { switched: false, evaluation };
+
+  const { data: successor, error } = await db
+    .from('workout_plans')
+    .select('id, name, duration_weeks')
+    .eq('id', successorId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!successor) return { switched: false, evaluation };
+
+  const baseWeeks = successor.duration_weeks ?? plan.duration_weeks ?? null;
+  const adjustedWeeks = baseWeeks ? Math.max(1, baseWeeks + DURATION_ADJUST_WEEKS[evaluation.verdict]) : null;
+
+  await setActivePlan(userId, successorId, adjustedWeeks);
+  return { switched: true, evaluation, successorName: successor.name };
+}
+
+export async function fetchActivePlan(userId, meta = {}) {
   const { data: actives, error } = await db
     .from('workout_plans')
-    .select('id, name, created_at')
+    .select(PLAN_CYCLE_FIELDS)
     .eq('user_id', userId)
     .eq('is_active', true)
     .order('created_at', { ascending: true });
@@ -134,7 +174,7 @@ export async function fetchActivePlan(userId) {
   if (!plan) {
     const { data: any } = await db
       .from('workout_plans')
-      .select('id, name')
+      .select(PLAN_CYCLE_FIELDS)
       .eq('user_id', userId)
       .order('created_at', { ascending: true })
       .limit(1)
@@ -148,13 +188,23 @@ export async function fetchActivePlan(userId) {
   }
 
   const days = await fetchPlanDays(plan.id);
+
+  if (plan.end_date && plan.end_date <= TODAY_DATE) {
+    const { switched, evaluation, successorName } = await applyPlanExpiry(userId, plan, days, meta);
+    if (switched) {
+      const next = await fetchActivePlan(userId, meta);
+      return { ...next, switchInfo: { toName: successorName, verdict: evaluation.verdict } };
+    }
+    return { id: plan.id, name: plan.name, days, expiredNoSuccessor: true };
+  }
+
   return { id: plan.id, name: plan.name, days };
 }
 
 export async function listPlans(userId) {
   const { data, error } = await db
     .from('workout_plans')
-    .select('id, name, is_active, created_at')
+    .select('id, name, is_active, created_at, start_date, end_date, duration_weeks, next_plan_id, regression_plan_id')
     .eq('user_id', userId)
     .order('created_at', { ascending: true });
   if (error) throw error;
@@ -181,11 +231,28 @@ export async function createPlan(userId, name, copyFromPlanId = null) {
   return plan;
 }
 
-export async function setActivePlan(userId, planId) {
+// durationWeeks define o prazo do ciclo (start_date = hoje, end_date = hoje +
+// N semanas); null/0 ativa o plano sem prazo (comportamento anterior, ciclo
+// indefinido) e limpa qualquer prazo que o plano já tivesse.
+export async function setActivePlan(userId, planId, durationWeeks = null) {
   const { error: offErr } = await db.from('workout_plans').update({ is_active: false }).eq('user_id', userId);
   if (offErr) throw offErr;
-  const { error: onErr } = await db.from('workout_plans').update({ is_active: true }).eq('id', planId);
+
+  const patch = durationWeeks
+    ? { is_active: true, start_date: TODAY_DATE, end_date: addWeeks(TODAY_DATE, durationWeeks), duration_weeks: durationWeeks }
+    : { is_active: true, start_date: null, end_date: null, duration_weeks: null };
+  const { error: onErr } = await db.from('workout_plans').update(patch).eq('id', planId);
   if (onErr) throw onErr;
+}
+
+// next_plan_id: plano ativado automaticamente quando o ciclo termina bem
+// (progressão). regression_plan_id: ativado quando o ciclo termina
+// estagnado/negativo (recuperação/deload). Ambos opcionais e independentes.
+export async function updatePlanSuccessors(planId, { nextPlanId, regressionPlanId }) {
+  const { error } = await db.from('workout_plans')
+    .update({ next_plan_id: nextPlanId || null, regression_plan_id: regressionPlanId || null })
+    .eq('id', planId);
+  if (error) throw error;
 }
 
 export async function renamePlan(planId, name) {

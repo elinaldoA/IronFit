@@ -95,8 +95,9 @@ async function fetchSetsWithDatesFallback(userId, exerciseName) {
 }
 
 // Busca todas as séries concluídas (com carga, reps e data da sessão) de um
-// exercício — usada tanto pra sugestão de carga quanto pra detecção de platô.
-async function fetchExerciseSetsWithDates(userId, exerciseName) {
+// exercício — usada pra sugestão de carga, detecção de platô e (via
+// planEvolution.js) pra classificar a tendência do exercício num ciclo.
+export async function fetchExerciseSetsWithDates(userId, exerciseName) {
   try {
     const { data, error } = await db
       .from('exercise_sets')

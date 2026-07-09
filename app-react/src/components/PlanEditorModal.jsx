@@ -4,31 +4,76 @@ import { getModalRoot } from '../lib/modalRoot';
 import { useAuth } from '../context/AuthContext';
 import { useWorkout } from '../context/WorkoutContext';
 import { useToast } from '../context/ToastContext';
+import { parseLocalDate, fmtDate } from '../lib/utils';
+import { TODAY_DATE } from '../data/treinoData';
 import {
-  listPlans, createPlan, setActivePlan, renamePlan, deletePlan,
+  listPlans, createPlan, setActivePlan, renamePlan, deletePlan, updatePlanSuccessors,
   fetchPlanDays, updatePlanDay, addExercise, updateExercise, deleteExercise, reorderExercises,
 } from '../lib/workoutPlans';
 
 const WEEK_ORDER = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
 
-function PlanRow({ plan, onSetActive, onRename, onDelete }) {
+// Dias restantes até end_date (negativo = ciclo já vencido). Compara datas
+// puras (meio-dia local), não timestamps, pra não variar com hora do dia.
+function daysUntil(endDate) {
+  const diffMs = parseLocalDate(endDate) - parseLocalDate(TODAY_DATE);
+  return Math.round(diffMs / 86400000);
+}
+
+function PlanRow({ plan, allPlans, onSetActive, onRename, onDelete, onUpdateSuccessors }) {
   const [name, setName] = useState(plan.name);
   useEffect(() => { setName(plan.name); }, [plan.name]);
 
+  const daysLeft = plan.end_date ? daysUntil(plan.end_date) : null;
+  const otherPlans = allPlans.filter(p => p.id !== plan.id);
+
   return (
     <div className={`plan-row${plan.is_active ? ' plan-row--active' : ''}`}>
-      <input
-        className="input input--sm plan-row__name"
-        value={name}
-        onChange={e => setName(e.target.value)}
-        onBlur={() => { if (name.trim() && name !== plan.name) onRename(name); }}
-      />
-      {plan.is_active ? (
-        <span className="plan-row__badge">Ativo</span>
-      ) : (
-        <button type="button" className="btn btn--outline btn--sm" onClick={onSetActive}>Ativar</button>
+      <div className="plan-row__main">
+        <input
+          className="input input--sm plan-row__name"
+          value={name}
+          onChange={e => setName(e.target.value)}
+          onBlur={() => { if (name.trim() && name !== plan.name) onRename(name); }}
+        />
+        {plan.is_active ? (
+          <span className="plan-row__badge">Ativo</span>
+        ) : (
+          <button type="button" className="btn btn--outline btn--sm" onClick={onSetActive}>Ativar</button>
+        )}
+        <button type="button" className="plan-row__del" onClick={onDelete} aria-label="Excluir plano">✕</button>
+      </div>
+
+      {plan.end_date && (
+        <p className="plan-row__cycle">
+          {daysLeft >= 0 ? `Ciclo termina em ${fmtDate(plan.end_date)} (faltam ${daysLeft}d)` : `Ciclo vencido em ${fmtDate(plan.end_date)}`}
+        </p>
       )}
-      <button type="button" className="plan-row__del" onClick={onDelete} aria-label="Excluir plano">✕</button>
+
+      <div className="plan-row__successors">
+        <label className="plan-row__successor-field">
+          Próximo (progressão)
+          <select
+            className="input input--sm"
+            value={plan.next_plan_id || ''}
+            onChange={e => onUpdateSuccessors({ nextPlanId: e.target.value, regressionPlanId: plan.regression_plan_id })}
+          >
+            <option value="">Nenhum</option>
+            {otherPlans.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </select>
+        </label>
+        <label className="plan-row__successor-field">
+          Recuperação (se estagnar)
+          <select
+            className="input input--sm"
+            value={plan.regression_plan_id || ''}
+            onChange={e => onUpdateSuccessors({ nextPlanId: plan.next_plan_id, regressionPlanId: e.target.value })}
+          >
+            <option value="">Nenhum</option>
+            {otherPlans.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </select>
+        </label>
+      </div>
     </div>
   );
 }
@@ -171,14 +216,37 @@ export default function PlanEditorModal({ onClose }) {
   }
 
   async function handleSetActive(planId) {
+    const plan = plans.find(p => p.id === planId);
+    const input = window.prompt(
+      'Duração deste ciclo em semanas (deixe em branco para sem prazo):',
+      plan?.duration_weeks ?? ''
+    );
+    if (input === null) return;
+
+    const weeks = input.trim() ? parseInt(input, 10) : null;
+    if (input.trim() && (!Number.isFinite(weeks) || weeks <= 0)) {
+      toast('⚠️ Duração inválida');
+      return;
+    }
+
     try {
-      await setActivePlan(user.id, planId);
+      await setActivePlan(user.id, planId, weeks);
       await loadPlans(planId);
       await refreshPlan();
       toast('✅ Plano ativado');
     } catch (err) {
       console.error('setActivePlan:', err);
       toast('⚠️ Erro ao ativar plano');
+    }
+  }
+
+  async function handleUpdateSuccessors(planId, patch) {
+    try {
+      await updatePlanSuccessors(planId, patch);
+      await loadPlans(selectedPlanId);
+    } catch (err) {
+      console.error('updatePlanSuccessors:', err);
+      toast('⚠️ Erro ao salvar encadeamento do plano');
     }
   }
 
@@ -292,10 +360,11 @@ export default function PlanEditorModal({ onClose }) {
             <div className="plan-list">
               {loadingPlans ? <p className="dash-empty">Carregando…</p> : plans.map(p => (
                 <PlanRow
-                  key={p.id} plan={p}
+                  key={p.id} plan={p} allPlans={plans}
                   onSetActive={() => handleSetActive(p.id)}
                   onRename={name => handleRename(p.id, name)}
                   onDelete={() => handleDeletePlan(p.id)}
+                  onUpdateSuccessors={patch => handleUpdateSuccessors(p.id, patch)}
                 />
               ))}
 

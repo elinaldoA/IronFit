@@ -115,6 +115,7 @@ export function WorkoutProvider({ children }) {
   const toast = useToast();
   const [workoutIds, setWorkoutIds] = useState({});
   const [activePlanDays, setActivePlanDays] = useState([]);
+  const [planExpired, setPlanExpired] = useState(false);
   const [syncStatus, setSyncStatus] = useState(() => (queueSize() > 0 ? 'pending' : 'ok'));
   const [dataVersion, setDataVersion] = useState(0);
 
@@ -139,8 +140,14 @@ export function WorkoutProvider({ children }) {
     if (!user) return;
     setSyncStatus('loading');
     try {
-      const plan = await fetchActivePlan(user.id);
+      const plan = await fetchActivePlan(user.id, user.user_metadata);
       const days = plan.days;
+      setPlanExpired(!!plan.expiredNoSuccessor);
+      if (plan.switchInfo) {
+        const verdictLabel = plan.switchInfo.verdict === 'positivo' ? 'progressão'
+          : plan.switchInfo.verdict === 'negativo' ? 'recuperação' : 'continuidade';
+        toast(`🔄 Ciclo encerrado — ativamos "${plan.switchInfo.toName}" automaticamente (${verdictLabel})`);
+      }
 
       const entries = await Promise.all(days.map(async (day) => {
         const wId = await ensureWorkoutId(user.id, day);
@@ -194,7 +201,7 @@ export function WorkoutProvider({ children }) {
 
   useEffect(() => {
     if (user) loadUserData();
-    else { setWorkoutIds({}); setActivePlanDays([]); }
+    else { setWorkoutIds({}); setActivePlanDays([]); setPlanExpired(false); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
@@ -278,7 +285,7 @@ export function WorkoutProvider({ children }) {
   }
 
   return (
-    <WorkoutContext.Provider value={{ syncStatus, dataVersion, activePlanDays, workoutIds, saveWorkoutStatus, saveSetState, saveWorkoutTimer, syncNow, markPending, refreshPlan: loadUserData }}>
+    <WorkoutContext.Provider value={{ syncStatus, dataVersion, activePlanDays, planExpired, workoutIds, saveWorkoutStatus, saveSetState, saveWorkoutTimer, syncNow, markPending, refreshPlan: loadUserData }}>
       {children}
     </WorkoutContext.Provider>
   );
