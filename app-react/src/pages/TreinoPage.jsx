@@ -6,7 +6,7 @@ import { useToast } from '../context/ToastContext';
 import { parseRestSeconds, getDateForWeekday, formatDuration } from '../lib/utils';
 import { db } from '../lib/supabase';
 import { playWorkoutFinishedSound } from '../lib/sound';
-import { checkForNewPR, fetchProgressionSuggestion } from '../lib/records';
+import { checkForNewPR, fetchProgressionSuggestion, fetchPlateauStatus } from '../lib/records';
 import { isNotifyEnabled } from '../lib/notifications';
 import { sendPushToSelf } from '../lib/pushSubscriptions';
 import RestTimer from '../components/RestTimer';
@@ -197,6 +197,7 @@ function SetRow({ ex, n, day, bump, onRestStart }) {
 function ExerciseBlock({ ex, day, bump, onRestStart, open, version, onToggleAll }) {
   const { user } = useAuth();
   const [suggestion, setSuggestion] = useState(null);
+  const [plateau, setPlateau] = useState(null);
   const setCount = parseInt(ex.series, 10);
 
   useEffect(() => {
@@ -205,6 +206,9 @@ function ExerciseBlock({ ex, day, bump, onRestStart, open, version, onToggleAll 
     fetchProgressionSuggestion(user.id, ex.nome, ex.reps)
       .then(s => { if (!cancelled) setSuggestion(s); })
       .catch(err => console.error('fetchProgressionSuggestion:', err));
+    fetchPlateauStatus(user.id, ex.nome, ex.reps)
+      .then(p => { if (!cancelled) setPlateau(p); })
+      .catch(err => console.error('fetchPlateauStatus:', err));
     return () => { cancelled = true; };
   }, [user, open, setCount, ex.nome, ex.reps]);
 
@@ -226,7 +230,12 @@ function ExerciseBlock({ ex, day, bump, onRestStart, open, version, onToggleAll 
         <div className="ex-block__titles">
           <span className="ex-name">{ex.nome}</span>
           <span className="ex-block__meta">{ex.reps} reps · desc. {ex.descanso}</span>
-          {suggestion && (
+          {plateau ? (
+            <p className="ex-block__suggestion ex-block__suggestion--plateau">
+              ⚠️ Estagnado há {plateau.sessionsStuck} treinos em {plateau.lastCarga}kg
+              {' '}<span className="ex-block__suggestion-hint">— tente um deload pra {plateau.suggestedDeload}kg ou troque o exercício</span>
+            </p>
+          ) : suggestion && (
             <p className="ex-block__suggestion">
               💡 Sugestão: {suggestion.suggestedCarga}kg
               {' '}<span className="ex-block__suggestion-hint">(última vez: {suggestion.lastCarga}kg × {suggestion.lastReps} reps)</span>

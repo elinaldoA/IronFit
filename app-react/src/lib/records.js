@@ -94,15 +94,9 @@ async function fetchSetsWithDatesFallback(userId, exerciseName) {
   return (sets || []).map(s => ({ carga: s.carga, reps: s.reps, workout_date: dateById.get(s.workout_id) }));
 }
 
-// Sugere a carga da próxima sessão: se todas as séries da última sessão bateram o
-// teto da faixa de reps planejada, sugere +2,5kg; senão, sugere repetir a mesma carga.
-// Retorna null se o exercício não tem histórico ou a faixa de reps não é numérica
-// (ex.: "até a falha", isometria em segundos, cardio).
-export async function fetchProgressionSuggestion(userId, exerciseName, repsStr) {
-  const ceiling = parseRepCeiling(repsStr);
-  if (ceiling === null) return null;
-
-  let sets;
+// Busca todas as séries concluídas (com carga, reps e data da sessão) de um
+// exercício — usada tanto pra sugestão de carga quanto pra detecção de platô.
+async function fetchExerciseSetsWithDates(userId, exerciseName) {
   try {
     const { data, error } = await db
       .from('exercise_sets')
@@ -112,11 +106,22 @@ export async function fetchProgressionSuggestion(userId, exerciseName, repsStr) 
       .eq('completed', true)
       .not('carga', 'is', null);
     if (error) throw error;
-    sets = (data || []).map(s => ({ carga: s.carga, reps: s.reps, workout_date: s.workouts.workout_date }));
+    return (data || []).map(s => ({ carga: s.carga, reps: s.reps, workout_date: s.workouts.workout_date }));
   } catch (err) {
-    console.warn('fetchProgressionSuggestion: embed falhou, usando busca em 2 passos', err);
-    sets = await fetchSetsWithDatesFallback(userId, exerciseName);
+    console.warn('fetchExerciseSetsWithDates: embed falhou, usando busca em 2 passos', err);
+    return fetchSetsWithDatesFallback(userId, exerciseName);
   }
+}
+
+// Sugere a carga da próxima sessão: se todas as séries da última sessão bateram o
+// teto da faixa de reps planejada, sugere +2,5kg; senão, sugere repetir a mesma carga.
+// Retorna null se o exercício não tem histórico ou a faixa de reps não é numérica
+// (ex.: "até a falha", isometria em segundos, cardio).
+export async function fetchProgressionSuggestion(userId, exerciseName, repsStr) {
+  const ceiling = parseRepCeiling(repsStr);
+  if (ceiling === null) return null;
+
+  const sets = await fetchExerciseSetsWithDates(userId, exerciseName);
   if (!sets.length) return null;
 
   const lastDate = sets.reduce((max, s) => (s.workout_date > max ? s.workout_date : max), sets[0].workout_date);
@@ -132,6 +137,49 @@ export async function fetchProgressionSuggestion(userId, exerciseName, repsStr) 
     lastReps: Math.max(...setsAtLastCarga.map(s => parseInt(s.reps, 10))),
     suggestedCarga: hitCeiling ? lastCarga + 2.5 : lastCarga,
     hitCeiling,
+  };
+}
+
+const PLATEAU_SESSIONS = 3;
+
+// Detecta estagnação: olha as últimas PLATEAU_SESSIONS sessões distintas do
+// exercício (maior carga de cada uma). Se a carga não mudou, os reps não
+// melhoraram e o teto da faixa nunca foi batido em nenhuma delas, sugere um
+// deload de 10%. Retorna null se faltar histórico, a faixa de reps não for
+// numérica, ou a carga/reps ainda estiverem progredindo normalmente.
+export async function fetchPlateauStatus(userId, exerciseName, repsStr) {
+  const ceiling = parseRepCeiling(repsStr);
+  if (ceiling === null) return null;
+
+  const sets = await fetchExerciseSetsWithDates(userId, exerciseName);
+  if (!sets.length) return null;
+
+  const bestByDate = new Map();
+  sets.forEach(s => {
+    const carga = parseFloat(s.carga);
+    const reps = parseInt(s.reps, 10);
+    if (!Number.isFinite(carga) || !Number.isFinite(reps)) return;
+    const prev = bestByDate.get(s.workout_date);
+    if (!prev || carga > prev.carga || (carga === prev.carga && reps > prev.reps)) {
+      bestByDate.set(s.workout_date, { carga, reps });
+    }
+  });
+
+  const recentDates = [...bestByDate.keys()].sort().reverse().slice(0, PLATEAU_SESSIONS);
+  if (recentDates.length < PLATEAU_SESSIONS) return null;
+
+  const sessions = recentDates.map(d => bestByDate.get(d)).reverse(); // mais antiga primeiro
+  const first = sessions[0];
+  const cargaFrozen = sessions.every(s => s.carga === first.carga);
+  const noRepProgress = sessions[sessions.length - 1].reps <= first.reps;
+  const neverHitCeiling = sessions.every(s => s.reps < ceiling);
+
+  if (!cargaFrozen || !noRepProgress || !neverHitCeiling) return null;
+
+  return {
+    sessionsStuck: PLATEAU_SESSIONS,
+    lastCarga: first.carga,
+    suggestedDeload: Math.round(first.carga * 0.9 * 2) / 2, // arredonda pra 0,5kg
   };
 }
 

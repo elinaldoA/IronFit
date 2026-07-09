@@ -697,6 +697,10 @@ button, input { font-family: inherit; }
   color: var(--text-dim);
 }
 
+.ex-block__suggestion--plateau {
+  color: var(--warning);
+}
+
 .ex-block__mark-all {
   flex-shrink: 0;
   border: 1px solid var(--border-2);
