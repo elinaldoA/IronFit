@@ -61,18 +61,22 @@ function SetRow({ ex, n, day, bump, onRestStart }) {
   const cargaSaveTimer = useRef(null);
   const repsSaveTimer = useRef(null);
 
-  async function flushCarga(val) {
+  async function flushCarga(val, showFlash) {
     if (!user) return;
     await saveSetState(day.dia, ex.nome, n, { carga: val === '' ? null : parseFloat(val) });
-    setSaved(true);
-    setTimeout(() => setSaved(false), 1200);
+    if (showFlash) {
+      setSaved(true);
+      setTimeout(() => setSaved(false), 1200);
+    }
   }
 
-  async function flushReps(val) {
+  async function flushReps(val, showFlash) {
     if (!user) return;
     await saveSetState(day.dia, ex.nome, n, { reps: val === '' ? null : parseFloat(val) });
-    setSaved(true);
-    setTimeout(() => setSaved(false), 1200);
+    if (showFlash) {
+      setSaved(true);
+      setTimeout(() => setSaved(false), 1200);
+    }
   }
 
   function handleCargaInput(e) {
@@ -81,7 +85,10 @@ function SetRow({ ex, n, day, bump, onRestStart }) {
     localStorage.setItem(`set_${ex.nome}_${n}_carga`, val);
     bump();
     clearTimeout(cargaSaveTimer.current);
-    cargaSaveTimer.current = setTimeout(() => flushCarga(val), 800);
+    // Salva em background a cada pausa de digitação, mas sem piscar — o flash
+    // visual só acontece quando o usuário termina o campo (blur), pra não
+    // piscar várias vezes numa digitação com pausas.
+    cargaSaveTimer.current = setTimeout(() => flushCarga(val, false), 800);
   }
 
   function handleRepsInput(e) {
@@ -90,19 +97,19 @@ function SetRow({ ex, n, day, bump, onRestStart }) {
     localStorage.setItem(`set_${ex.nome}_${n}_reps`, val);
     bump();
     clearTimeout(repsSaveTimer.current);
-    repsSaveTimer.current = setTimeout(() => flushReps(val), 800);
+    repsSaveTimer.current = setTimeout(() => flushReps(val, false), 800);
   }
 
   // Ao sair do campo (blur), salva na hora — sem isso, um F5 rápido logo após
   // digitar pode acontecer antes do debounce de 800ms disparar, perdendo o valor.
   function handleCargaBlur() {
     clearTimeout(cargaSaveTimer.current);
-    flushCarga(carga);
+    flushCarga(carga, true);
   }
 
   function handleRepsBlur() {
     clearTimeout(repsSaveTimer.current);
-    flushReps(reps);
+    flushReps(reps, true);
   }
 
   // Reload/fechar de aba destrói os setTimeout pendentes antes deles rodarem —
@@ -111,11 +118,11 @@ function SetRow({ ex, n, day, bump, onRestStart }) {
     function flushPending() {
       if (cargaSaveTimer.current) {
         clearTimeout(cargaSaveTimer.current);
-        flushCarga(carga);
+        flushCarga(carga, false);
       }
       if (repsSaveTimer.current) {
         clearTimeout(repsSaveTimer.current);
-        flushReps(reps);
+        flushReps(reps, false);
       }
     }
     window.addEventListener('pagehide', flushPending);
