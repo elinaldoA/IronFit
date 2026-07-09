@@ -59,6 +59,15 @@ export function parseRestSeconds(descanso) {
   return 0;
 }
 
+// Extrai o teto numérico de uma faixa de reps ("8-10" -> 10, "12" -> 12).
+// Retorna null pra texto sem faixa numérica clara ("até a falha", "45s", cardio).
+export function parseRepCeiling(repsStr) {
+  const range = repsStr.match(/(\d+)\s*-\s*(\d+)/);
+  if (range) return parseInt(range[2], 10);
+  const single = repsStr.match(/^(\d+)$/);
+  return single ? parseInt(single[1], 10) : null;
+}
+
 export function calcStreak(dates) {
   if (!dates.length) return 0;
   const unique = [...new Set(dates)].sort().reverse();

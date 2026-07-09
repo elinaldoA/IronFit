@@ -687,6 +687,16 @@ button, input { font-family: inherit; }
   color: var(--text-dim);
 }
 
+.ex-block__suggestion {
+  font-size: 0.68rem;
+  color: var(--primary-h);
+  margin: 2px 0 0;
+}
+
+.ex-block__suggestion-hint {
+  color: var(--text-dim);
+}
+
 .ex-block__mark-all {
   flex-shrink: 0;
   border: 1px solid var(--border-2);

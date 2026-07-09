@@ -1,4 +1,5 @@
 import { db } from './supabase';
+import { parseRepCeiling } from './utils';
 
 // Fórmula de Epley — estimativa padrão de 1RM a partir de peso x repetições.
 export function estimateOneRepMax(weight, reps) {
@@ -67,6 +68,71 @@ export async function fetchBestForExercise(userId, exerciseName, exclude = {}) {
   });
 
   return { bestCarga, bestOneRm };
+}
+
+// Mesmo problema/solução de fetchSetsForExerciseFallback, mas trazendo workout_date
+// junto (precisa saber qual foi a sessão mais recente pra sugerir a próxima carga).
+async function fetchSetsWithDatesFallback(userId, exerciseName) {
+  const { data: workouts, error: wErr } = await db
+    .from('workouts')
+    .select('id, workout_date')
+    .eq('user_id', userId);
+  if (wErr) throw wErr;
+
+  const dateById = new Map((workouts || []).map(w => [w.id, w.workout_date]));
+  const ids = [...dateById.keys()];
+  if (!ids.length) return [];
+
+  const { data: sets, error } = await db
+    .from('exercise_sets')
+    .select('workout_id, carga, reps')
+    .in('workout_id', ids)
+    .eq('exercise_name', exerciseName)
+    .eq('completed', true)
+    .not('carga', 'is', null);
+  if (error) throw error;
+  return (sets || []).map(s => ({ carga: s.carga, reps: s.reps, workout_date: dateById.get(s.workout_id) }));
+}
+
+// Sugere a carga da próxima sessão: se todas as séries da última sessão bateram o
+// teto da faixa de reps planejada, sugere +2,5kg; senão, sugere repetir a mesma carga.
+// Retorna null se o exercício não tem histórico ou a faixa de reps não é numérica
+// (ex.: "até a falha", isometria em segundos, cardio).
+export async function fetchProgressionSuggestion(userId, exerciseName, repsStr) {
+  const ceiling = parseRepCeiling(repsStr);
+  if (ceiling === null) return null;
+
+  let sets;
+  try {
+    const { data, error } = await db
+      .from('exercise_sets')
+      .select('carga, reps, workouts!inner(user_id, workout_date)')
+      .eq('workouts.user_id', userId)
+      .eq('exercise_name', exerciseName)
+      .eq('completed', true)
+      .not('carga', 'is', null);
+    if (error) throw error;
+    sets = (data || []).map(s => ({ carga: s.carga, reps: s.reps, workout_date: s.workouts.workout_date }));
+  } catch (err) {
+    console.warn('fetchProgressionSuggestion: embed falhou, usando busca em 2 passos', err);
+    sets = await fetchSetsWithDatesFallback(userId, exerciseName);
+  }
+  if (!sets.length) return null;
+
+  const lastDate = sets.reduce((max, s) => (s.workout_date > max ? s.workout_date : max), sets[0].workout_date);
+  const lastSets = sets.filter(s => s.workout_date === lastDate);
+  const lastCarga = Math.max(...lastSets.map(s => parseFloat(s.carga)).filter(Number.isFinite));
+  if (!Number.isFinite(lastCarga)) return null;
+
+  const setsAtLastCarga = lastSets.filter(s => parseFloat(s.carga) === lastCarga);
+  const hitCeiling = setsAtLastCarga.every(s => parseInt(s.reps, 10) >= ceiling);
+
+  return {
+    lastCarga,
+    lastReps: Math.max(...setsAtLastCarga.map(s => parseInt(s.reps, 10))),
+    suggestedCarga: hitCeiling ? lastCarga + 2.5 : lastCarga,
+    hitCeiling,
+  };
 }
 
 // Compara a série recém-concluída com o histórico e diz se ela bateu algum recorde.

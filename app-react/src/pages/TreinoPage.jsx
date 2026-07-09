@@ -6,7 +6,7 @@ import { useToast } from '../context/ToastContext';
 import { parseRestSeconds, getDateForWeekday, formatDuration } from '../lib/utils';
 import { db } from '../lib/supabase';
 import { playWorkoutFinishedSound } from '../lib/sound';
-import { checkForNewPR } from '../lib/records';
+import { checkForNewPR, fetchProgressionSuggestion } from '../lib/records';
 import { isNotifyEnabled } from '../lib/notifications';
 import { sendPushToSelf } from '../lib/pushSubscriptions';
 import RestTimer from '../components/RestTimer';
@@ -194,6 +194,62 @@ function SetRow({ ex, n, day, bump, onRestStart }) {
   );
 }
 
+function ExerciseBlock({ ex, day, bump, onRestStart, open, version, onToggleAll }) {
+  const { user } = useAuth();
+  const [suggestion, setSuggestion] = useState(null);
+  const setCount = parseInt(ex.series, 10);
+
+  useEffect(() => {
+    if (!user || !open || !setCount) return;
+    let cancelled = false;
+    fetchProgressionSuggestion(user.id, ex.nome, ex.reps)
+      .then(s => { if (!cancelled) setSuggestion(s); })
+      .catch(err => console.error('fetchProgressionSuggestion:', err));
+    return () => { cancelled = true; };
+  }, [user, open, setCount, ex.nome, ex.reps]);
+
+  if (!setCount) {
+    return (
+      <div className="ex-block">
+        <div className="ex-block__header">
+          <span className="ex-name">{ex.nome}</span>
+          <span className="ex-block__meta">{ex.reps}</span>
+        </div>
+      </div>
+    );
+  }
+
+  const allDone = allSetsDone(ex, setCount);
+  return (
+    <div className="ex-block">
+      <div className="ex-block__header">
+        <div className="ex-block__titles">
+          <span className="ex-name">{ex.nome}</span>
+          <span className="ex-block__meta">{ex.reps} reps · desc. {ex.descanso}</span>
+          {suggestion && (
+            <p className="ex-block__suggestion">
+              💡 Sugestão: {suggestion.suggestedCarga}kg
+              {' '}<span className="ex-block__suggestion-hint">(última vez: {suggestion.lastCarga}kg × {suggestion.lastReps} reps)</span>
+            </p>
+          )}
+        </div>
+        <button
+          type="button"
+          className={`ex-block__mark-all${allDone ? ' ex-block__mark-all--done' : ''}`}
+          onClick={onToggleAll}
+        >
+          {allDone ? '✓ Todas' : 'Marcar todas'}
+        </button>
+      </div>
+      <div className="ex-block__sets">
+        {Array.from({ length: setCount }, (_, i) => i + 1).map(n => (
+          <SetRow key={`${n}-${version}`} ex={ex} n={n} day={day} bump={bump} onRestStart={onRestStart} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function allSetsDone(ex, setCount) {
   for (let n = 1; n <= setCount; n++) {
     if (localStorage.getItem(`set_${ex.nome}_${n}_done`) !== 'true') return false;
@@ -273,40 +329,12 @@ function DayCard({ day, isToday, bump, onRestStart, onFinish }) {
   }
 
   function renderExerciseBlock(ex) {
-    const setCount = parseInt(ex.series, 10);
-    if (!setCount) {
-      return (
-        <div className="ex-block" key={ex.nome}>
-          <div className="ex-block__header">
-            <span className="ex-name">{ex.nome}</span>
-            <span className="ex-block__meta">{ex.reps}</span>
-          </div>
-        </div>
-      );
-    }
-    const version = markVersions[ex.nome] || 0;
-    const allDone = allSetsDone(ex, setCount);
     return (
-      <div className="ex-block" key={ex.nome}>
-        <div className="ex-block__header">
-          <div className="ex-block__titles">
-            <span className="ex-name">{ex.nome}</span>
-            <span className="ex-block__meta">{ex.reps} reps · desc. {ex.descanso}</span>
-          </div>
-          <button
-            type="button"
-            className={`ex-block__mark-all${allDone ? ' ex-block__mark-all--done' : ''}`}
-            onClick={() => toggleAllSets(ex, setCount)}
-          >
-            {allDone ? '✓ Todas' : 'Marcar todas'}
-          </button>
-        </div>
-        <div className="ex-block__sets">
-          {Array.from({ length: setCount }, (_, i) => i + 1).map(n => (
-            <SetRow key={`${n}-${version}`} ex={ex} n={n} day={day} bump={bump} onRestStart={onRestStart} />
-          ))}
-        </div>
-      </div>
+      <ExerciseBlock
+        key={ex.nome} ex={ex} day={day} bump={bump} onRestStart={onRestStart}
+        open={open} version={markVersions[ex.nome] || 0}
+        onToggleAll={() => toggleAllSets(ex, parseInt(ex.series, 10))}
+      />
     );
   }
 
