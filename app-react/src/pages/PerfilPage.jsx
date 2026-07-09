@@ -23,6 +23,7 @@ const NOTIFY_PREFS = [
   { key: 'notifyStreakRisk', label: 'Sequência em risco (à noite, se ainda não treinou hoje)' },
   { key: 'notifyInactivity', label: 'Voltar a treinar (dias parado)' },
   { key: 'notifyWeeklySummary', label: 'Resumo semanal (segunda de manhã)' },
+  { key: 'notifyWeightUpdate', label: 'Atualizar peso (segunda de manhã)' },
   { key: 'notifyRecords', label: 'Recordes e conquistas' },
 ];
 

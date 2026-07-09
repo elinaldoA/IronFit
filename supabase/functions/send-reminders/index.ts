@@ -254,6 +254,21 @@ Deno.serve(async () => {
       });
     }
 
+    if (isWeeklySummarySlot && isNotifyEnabled(meta, 'notifyWeightUpdate')) {
+      const { data: weightLog } = await supabase
+        .from('weight_logs')
+        .select('id')
+        .eq('user_id', userId).eq('log_date', date)
+        .maybeSingle();
+      if (!weightLog) {
+        payloads.push({
+          title: '⚖️ Hora de atualizar seu peso',
+          body: 'Registre seu peso desta semana no Perfil pra acompanhar sua evolução.',
+          tag: `weight-update-${date}`,
+        });
+      }
+    }
+
     for (const payload of payloads) {
       for (const sub of userSubs) {
         try {
