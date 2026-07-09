@@ -20,6 +20,13 @@ export async function requestNotificationPermission() {
   return Notification.requestPermission();
 }
 
+// Preferências novas (streak, inatividade, resumo semanal, recordes) são opt-out: um
+// campo ausente em user_metadata (usuário que já tinha o switch mestre ligado antes
+// dessas preferências existirem) conta como ligado.
+export function isNotifyEnabled(meta, key) {
+  return meta?.[key] !== false;
+}
+
 export async function sendNotification(title, options) {
   if (!isNotificationSupported()) throw new Error('Notificações não suportadas neste navegador');
   if (Notification.permission !== 'granted') throw new Error(`Permissão de notificação: ${Notification.permission}`);

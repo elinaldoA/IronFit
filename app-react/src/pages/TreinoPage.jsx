@@ -7,6 +7,8 @@ import { parseRestSeconds, getDateForWeekday, formatDuration } from '../lib/util
 import { db } from '../lib/supabase';
 import { playWorkoutFinishedSound } from '../lib/sound';
 import { checkForNewPR } from '../lib/records';
+import { isNotifyEnabled } from '../lib/notifications';
+import { sendPushToSelf } from '../lib/pushSubscriptions';
 import RestTimer from '../components/RestTimer';
 import PlanEditorModal from '../components/PlanEditorModal';
 import WorkoutSummaryModal from '../components/WorkoutSummaryModal';
@@ -151,7 +153,16 @@ function SetRow({ ex, n, day, bump, onRestStart }) {
             const pr = await checkForNewPR(user.id, ex.nome, cargaNum, reps, {
               workoutId: wId ?? workoutIds[day.dia], setNumber: n,
             });
-            if (pr) toast(`🏆 Novo recorde em ${ex.nome}!`);
+            if (pr) {
+              toast(`🏆 Novo recorde em ${ex.nome}!`);
+              if (isNotifyEnabled(user.user_metadata, 'notifyRecords')) {
+                sendPushToSelf({
+                  title: '🏆 Novo recorde!',
+                  body: `${ex.nome}: ${cargaNum}kg`,
+                  tag: `pr-${ex.nome}`,
+                }).catch(err => console.error('sendPushToSelf:', err));
+              }
+            }
           } catch (err) {
             console.error('checkForNewPR:', err);
           }

@@ -11,6 +11,8 @@ import { countPhotos } from '../lib/progressPhotos';
 import { fetchRecipes } from '../lib/recipes';
 import { fetchWeightLogs } from '../lib/weightLog';
 import { BADGES, syncAchievements } from '../lib/achievements';
+import { isNotifyEnabled } from '../lib/notifications';
+import { sendPushToSelf } from '../lib/pushSubscriptions';
 import BodyAvatar from '../components/BodyAvatar';
 import LineChart from '../components/LineChart';
 import ProgressPhotos from '../components/ProgressPhotos';
@@ -280,7 +282,13 @@ export default function DashPage({ active }) {
         totalWeightLogs: weights.length,
       });
       setUnlockedBadges(unlockedIds);
-      newlyEarned.forEach(b => toast(`🏅 Conquista desbloqueada: ${b.title}`));
+      newlyEarned.forEach(b => {
+        toast(`🏅 Conquista desbloqueada: ${b.title}`);
+        if (isNotifyEnabled(user.user_metadata, 'notifyRecords')) {
+          sendPushToSelf({ title: '🏅 Conquista desbloqueada!', body: b.title, tag: `badge-${b.id}` })
+            .catch(err => console.error('sendPushToSelf:', err));
+        }
+      });
       hasLoadedAllTimeRef.current = true;
     } catch (err) {
       console.error('loadAllTimeLogs:', err);

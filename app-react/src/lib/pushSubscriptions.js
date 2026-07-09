@@ -46,3 +46,12 @@ export async function unsubscribeFromPush() {
   if (error) throw error;
   await sub.unsubscribe();
 }
+
+// Push imediato (chega mesmo com o app fechado/em outro dispositivo), diferente de
+// sendNotification() em lib/notifications.js que só funciona com a aba aberta. Usado
+// pra eventos pontuais (PR, conquista) — a Edge Function send-push identifica o
+// usuário pelo token da sessão atual, então não precisa (nem deve) passar user_id aqui.
+export async function sendPushToSelf({ title, body, tag }) {
+  const { error } = await db.functions.invoke('send-push', { body: { title, body, tag } });
+  if (error) throw error;
+}

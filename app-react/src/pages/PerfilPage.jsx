@@ -13,10 +13,17 @@ import { DEFAULT_MACROS, DEFAULT_WEEKLY_GOAL } from '../data/treinoData';
 import { generatePlan } from '../data/workoutTemplates';
 import { generateMealPlan } from '../data/mealTemplates';
 import { createGeneratedPlan } from '../lib/workoutPlans';
-import { isNotificationSupported, isIosSafariNotInstalled, sendNotification } from '../lib/notifications';
+import { isNotificationSupported, isIosSafariNotInstalled, sendNotification, isNotifyEnabled } from '../lib/notifications';
 import { useReminders } from '../hooks/useReminders';
 import { exportSummaryCSV, exportBackupJSON, printReport } from '../lib/exportData';
 import LineChart from '../components/LineChart';
+
+const NOTIFY_PREFS = [
+  { key: 'notifyStreakRisk', label: 'Sequência em risco (à noite, se ainda não treinou hoje)' },
+  { key: 'notifyInactivity', label: 'Voltar a treinar (dias parado)' },
+  { key: 'notifyWeeklySummary', label: 'Resumo semanal (segunda de manhã)' },
+  { key: 'notifyRecords', label: 'Recordes e conquistas' },
+];
 
 function imcInfo(peso, altura) {
   if (!peso || !altura || peso < 30 || altura < 100) return null;
@@ -519,6 +526,19 @@ export default function PerfilPage({ active }) {
               .then(() => toast('✅ Notificação enviada'))
               .catch(err => toast(`❌ Falhou: ${err.message}`))}
           >Testar notificação</button>
+
+          {NOTIFY_PREFS.map(({ key, label }) => (
+            <div className="profile-field profile-field--row" key={key}>
+              <label className="profile-field__label" htmlFor={key}>{label}</label>
+              <input
+                type="checkbox" id={key}
+                checked={isNotifyEnabled(user.user_metadata, key)}
+                disabled={!remindersEnabled}
+                onChange={e => updateProfile({ [key]: e.target.checked })
+                  .then(({ error }) => error && toast(`❌ ${error.message}`))}
+              />
+            </div>
+          ))}
         </div>
 
         <div className="profile-section">

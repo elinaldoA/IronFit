@@ -62,7 +62,11 @@ VITE_SUPABASE_ANON_KEY=<chave publica/anon do seu projeto>
 VITE_VAPID_PUBLIC_KEY=<chave publica VAPID, gerada com `npx web-push generate-vapid-keys`>
 ```
 
-`VITE_VAPID_PUBLIC_KEY` é usada para inscrever o navegador em notificações push (funcionam com o app fechado). Sem ela, o app funciona normalmente, só a inscrição de push falha com "Push não configurado". A chave privada correspondente fica só no backend, como secret `VAPID_PRIVATE_KEY` da Edge Function `send-reminders` (nunca no frontend).
+`VITE_VAPID_PUBLIC_KEY` é usada para inscrever o navegador em notificações push (funcionam com o app fechado). Sem ela, o app funciona normalmente, só a inscrição de push falha com "Push não configurado". A chave privada correspondente fica só no backend, como secret `VAPID_PRIVATE_KEY` das Edge Functions `send-reminders` e `send-push` (nunca no frontend).
+
+Duas Edge Functions cuidam de push (implantação manual, dashboard → Edge Functions → New function, colar o código de `supabase/functions/<nome>/index.ts`):
+- `send-reminders` — chamada só pelo cron (`pg_cron`, a cada minuto); **Verify JWT desativado**, pois não há usuário logado numa chamada interna do cron. Cobre refeição/água (horário fixo) e as notificações inteligentes: sequência em risco, inatividade e resumo semanal.
+- `send-push` — chamada pelo próprio app logo após um evento (novo recorde, conquista desbloqueada); **Verify JWT ativado**, já que o usuário só pode mandar push pra si mesmo (o `user_id` vem do token da sessão, nunca do corpo da requisição).
 
 Depois:
 

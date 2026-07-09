@@ -3,6 +3,11 @@
 // lógica de horários de refeição/água que hoje roda só no navegador
 // (app-react/src/components/ReminderScheduler.jsx), mas consultando o estado
 // real salvo no banco (diet_logs / water_logs) em vez de localStorage.
+//
+// Também cobre 3 notificações "inteligentes" que dependem do histórico de treinos
+// (streak em risco, inatividade, resumo semanal) — essas são só server-side, de
+// propósito: rodar a mesma checagem no ReminderScheduler.jsx do navegador geraria
+// notificação duplicada no minuto exato em que os dois baterem o mesmo horário.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import webpush from 'npm:web-push@3.6.7';
 
@@ -17,6 +22,15 @@ const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
 const WATER_REMINDER_TIMES = ['09:00', '11:00', '13:00', '15:00', '17:00', '19:00', '21:00'];
 const DEFAULT_MACRO_AGUA = 3.5;
+const DEFAULT_WEEKLY_GOAL = 5;
+
+const STREAK_RISK_TIME = '20:00';
+const STREAK_RISK_MIN = 3;
+const INACTIVITY_TIME = '09:00';
+const INACTIVITY_MIN_GAP = 2;
+const INACTIVITY_MAX_GAP = 14; // acima disso, para de insistir com quem sumiu há muito tempo
+const WEEKLY_SUMMARY_TIME = '08:00'; // só às segundas-feiras
+const HISTORY_LOOKBACK_DAYS = 39; // cobre o badge de streak de 30 dias + a semana do resumo
 
 // Mesma tabela padrão de app-react/src/data/treinoData.js (dietaData) — se o
 // usuário tiver customMeals em user_metadata, essas prevalecem.
@@ -35,6 +49,12 @@ function stripHtml(s) {
   return (s || '').replace(/<[^>]+>/g, '');
 }
 
+// Ausente em user_metadata = ligado (opt-out) — usuários que já tinham o switch mestre
+// ligado antes dessas preferências existirem continuam recebendo os novos tipos.
+function isNotifyEnabled(meta, key) {
+  return meta[key] !== false;
+}
+
 // Horário de Brasília, igual ao que o navegador do usuário usa (new Date()
 // local) — o cron do Postgres roda em UTC, então convertemos explicitamente.
 function nowInSaoPaulo() {
@@ -47,8 +67,46 @@ function nowInSaoPaulo() {
   return { date: `${get('year')}-${get('month')}-${get('day')}`, time: `${get('hour')}:${get('minute')}` };
 }
 
+// Constrói a data a partir só dos componentes ano/mês/dia (sem hora), pra day-of-week
+// e diferença de dias não dependerem do timezone do runtime do Deno.
+function parseDateOnly(dateStr) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
+function addDays(dateStr, days) {
+  const d = parseDateOnly(dateStr);
+  d.setDate(d.getDate() + days);
+  return d.toISOString().split('T')[0];
+}
+
+function daysBetween(fromStr, toStr) {
+  return Math.round((parseDateOnly(toStr) - parseDateOnly(fromStr)) / 86400000);
+}
+
+// Porta de app-react/src/lib/utils.js:calcStreak, mas com a data de referência sendo
+// ontem em vez de hoje — usado só quando o usuário ainda não treinou hoje, pra saber
+// se ele tem uma sequência ativa que está prestes a quebrar.
+function calcStreakEndingYesterday(dates, todayStr) {
+  const unique = [...new Set(dates)].sort().reverse();
+  let streak = 0;
+  let prev = addDays(todayStr, -1);
+  for (const d of unique) {
+    const diff = daysBetween(d, prev);
+    if (diff <= 1) { streak++; prev = d; } else break;
+  }
+  return streak;
+}
+
+function daysSinceLastWorkout(dates, todayStr) {
+  if (!dates.length) return null;
+  const mostRecent = [...dates].sort().reverse()[0];
+  return daysBetween(mostRecent, todayStr);
+}
+
 Deno.serve(async () => {
   const { date, time } = nowInSaoPaulo();
+  const dow = parseDateOnly(date).getDay(); // 0=domingo .. 1=segunda .. 6=sábado
 
   const { data: subs, error: subsErr } = await supabase.from('push_subscriptions').select('*');
   if (subsErr) return new Response(JSON.stringify({ error: subsErr.message }), { status: 500 });
@@ -67,6 +125,59 @@ Deno.serve(async () => {
     if (usersErr) return new Response(JSON.stringify({ error: usersErr.message }), { status: 500 });
     for (const u of usersPage.users) metaById.set(u.id, u.user_metadata || {});
     if (usersPage.users.length < 1000) break;
+  }
+
+  // Streak em risco / inatividade / resumo semanal só rodam nos horários exatos
+  // configurados acima — nos outros 59 minutos da hora, nenhuma query extra roda.
+  const isStreakRiskSlot = time === STREAK_RISK_TIME;
+  const isInactivitySlot = time === INACTIVITY_TIME;
+  const isWeeklySummarySlot = dow === 1 && time === WEEKLY_SUMMARY_TIME;
+
+  const historyByUser = new Map();
+  const weeklyCountByUser = new Map();
+  const weeklyVolumeByUser = new Map();
+
+  if (isStreakRiskSlot || isInactivitySlot || isWeeklySummarySlot) {
+    const historyStart = addDays(date, -HISTORY_LOOKBACK_DAYS);
+    const { data: history, error: historyErr } = await supabase
+      .from('workouts')
+      .select('id, user_id, workout_date')
+      .in('user_id', userIds)
+      .eq('completed', true)
+      .gte('workout_date', historyStart);
+    if (historyErr) return new Response(JSON.stringify({ error: historyErr.message }), { status: 500 });
+
+    for (const w of history || []) {
+      if (!historyByUser.has(w.user_id)) historyByUser.set(w.user_id, []);
+      historyByUser.get(w.user_id).push(w.workout_date);
+    }
+
+    if (isWeeklySummarySlot) {
+      const lastWeekMonday = addDays(date, -7);
+      const lastWeekSunday = addDays(date, -1);
+      const lastWeekWorkouts = (history || []).filter(
+        (w) => w.workout_date >= lastWeekMonday && w.workout_date <= lastWeekSunday
+      );
+      userIds.forEach((id) => { weeklyCountByUser.set(id, 0); weeklyVolumeByUser.set(id, 0); });
+      lastWeekWorkouts.forEach((w) => weeklyCountByUser.set(w.user_id, (weeklyCountByUser.get(w.user_id) || 0) + 1));
+
+      const workoutIdToUser = new Map(lastWeekWorkouts.map((w) => [w.id, w.user_id]));
+      const lastWeekIds = lastWeekWorkouts.map((w) => w.id);
+      if (lastWeekIds.length > 0) {
+        const { data: sets, error: setsErr } = await supabase
+          .from('exercise_sets')
+          .select('workout_id, carga')
+          .in('workout_id', lastWeekIds)
+          .eq('completed', true)
+          .not('carga', 'is', null);
+        if (setsErr) return new Response(JSON.stringify({ error: setsErr.message }), { status: 500 });
+        (sets || []).forEach((s) => {
+          const uid = workoutIdToUser.get(s.workout_id);
+          const carga = parseFloat(s.carga);
+          if (uid && Number.isFinite(carga)) weeklyVolumeByUser.set(uid, (weeklyVolumeByUser.get(uid) || 0) + carga);
+        });
+      }
+    }
   }
 
   for (const userId of userIds) {
@@ -104,6 +215,43 @@ Deno.serve(async () => {
           tag: `water-${date}-${time}`,
         });
       }
+    }
+
+    if (isStreakRiskSlot && isNotifyEnabled(meta, 'notifyStreakRisk')) {
+      const dates = historyByUser.get(userId) || [];
+      if (!dates.includes(date)) {
+        const streak = calcStreakEndingYesterday(dates, date);
+        if (streak >= STREAK_RISK_MIN) {
+          payloads.push({
+            title: '🔥 Sua sequência está em risco!',
+            body: `Você está numa sequência de ${streak} dias. Treine hoje antes da meia-noite pra não perdê-la.`,
+            tag: `streak-risk-${date}`,
+          });
+        }
+      }
+    }
+
+    if (isInactivitySlot && isNotifyEnabled(meta, 'notifyInactivity')) {
+      const dates = historyByUser.get(userId) || [];
+      const gap = daysSinceLastWorkout(dates, date);
+      if (gap !== null && gap >= INACTIVITY_MIN_GAP && gap <= INACTIVITY_MAX_GAP) {
+        payloads.push({
+          title: '💤 Sentimos sua falta',
+          body: `Já fazem ${gap} dias sem treino. Que tal voltar hoje?`,
+          tag: `inactivity-${date}`,
+        });
+      }
+    }
+
+    if (isWeeklySummarySlot && isNotifyEnabled(meta, 'notifyWeeklySummary')) {
+      const count = weeklyCountByUser.get(userId) || 0;
+      const volume = Math.round(weeklyVolumeByUser.get(userId) || 0);
+      const goal = Number(meta.weeklyGoal) > 0 ? Number(meta.weeklyGoal) : DEFAULT_WEEKLY_GOAL;
+      payloads.push({
+        title: count >= goal ? '🎉 Meta semanal batida!' : '📊 Resumo da semana',
+        body: `${count}/${goal} treinos concluídos · ${volume}kg de volume total.`,
+        tag: `weekly-summary-${date}`,
+      });
     }
 
     for (const payload of payloads) {
