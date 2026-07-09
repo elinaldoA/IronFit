@@ -7,6 +7,7 @@ import { useToast } from '../context/ToastContext';
 import { fmtDate, parseLocalDate, toDateStr, getWeekStart, calcStreak } from '../lib/utils';
 import { estimateOneRepMax } from '../lib/records';
 import { fetchFoodLogsRange, countFoodLogs } from '../lib/foodLog';
+import { fetchWaterLogsRange } from '../lib/dietaLog';
 import { countPhotos } from '../lib/progressPhotos';
 import { fetchRecipes } from '../lib/recipes';
 import { fetchWeightLogs } from '../lib/weightLog';
@@ -190,6 +191,7 @@ export default function DashPage({ active }) {
   const [logs, setLogs] = useState([]);
   const [allTimeLogs, setAllTimeLogs] = useState([]);
   const [foodLogs, setFoodLogs] = useState([]);
+  const [waterLogs, setWaterLogs] = useState([]);
   const [selectedExercise, setSelectedExercise] = useState('');
   const [loading, setLoading] = useState(false);
   const [loadingPR, setLoadingPR] = useState(false);
@@ -309,9 +311,12 @@ export default function DashPage({ active }) {
     async function loadDashboard() {
       setLoading(true);
       try {
-        const since = new Date();
+        // Ancora em TODAY_DATE (fuso de Brasília), não em `new Date()` local +
+        // toISOString() (UTC) — mesmo ajuste feito em HidratacaoPage.jsx, evita
+        // que a janela de 60 dias fique deslocada dependendo do fuso do navegador.
+        const since = parseLocalDate(TODAY_DATE);
         since.setDate(since.getDate() - 59);
-        const sinceStr = since.toISOString().split('T')[0];
+        const sinceStr = toDateStr(since);
 
         const { data: w, error: wErr } = await db
           .from('workouts')
@@ -338,8 +343,12 @@ export default function DashPage({ active }) {
           setLogs([]);
         }
 
-        const food = await fetchFoodLogsRange(user.id, sinceStr);
+        const [food, water] = await Promise.all([
+          fetchFoodLogsRange(user.id, sinceStr),
+          fetchWaterLogsRange(user.id, sinceStr),
+        ]);
         setFoodLogs(food);
+        setWaterLogs(water);
       } catch (err) {
         console.error('loadDashboard:', err);
         toast('⚠️ Erro ao carregar evolução');
@@ -385,6 +394,31 @@ export default function DashPage({ active }) {
     });
     return Object.keys(totals).sort().map(date => ({ value: Math.round(totals[date]), label: fmtDate(date) }));
   }, [foodLogs]);
+
+  // proteina/carboidrato/gordura já vêm em cada linha de foodLogs (fetchFoodLogsRange
+  // seleciona os 4 campos), só faltava somar por dia como já é feito pra kcal.
+  const macroPoints = useMemo(() => {
+    const totals = {};
+    foodLogs.forEach(f => {
+      const date = f.log_date;
+      const entry = totals[date] || { proteina: 0, carboidrato: 0, gordura: 0 };
+      entry.proteina += parseFloat(f.proteina) || 0;
+      entry.carboidrato += parseFloat(f.carboidrato) || 0;
+      entry.gordura += parseFloat(f.gordura) || 0;
+      totals[date] = entry;
+    });
+    const dates = Object.keys(totals).sort();
+    return {
+      proteina: dates.map(date => ({ value: Math.round(totals[date].proteina), label: fmtDate(date) })),
+      carboidrato: dates.map(date => ({ value: Math.round(totals[date].carboidrato), label: fmtDate(date) })),
+      gordura: dates.map(date => ({ value: Math.round(totals[date].gordura), label: fmtDate(date) })),
+    };
+  }, [foodLogs]);
+
+  const waterPoints = useMemo(() => waterLogs
+    .filter(w => Number.isFinite(w.amount_ml))
+    .map(w => ({ value: Math.round(w.amount_ml / 1000 * 10) / 10, label: fmtDate(w.log_date) })),
+  [waterLogs]);
 
   return (
     <section id="page-dash" className="page active">
@@ -502,6 +536,62 @@ export default function DashPage({ active }) {
                 valueSuffix="kcal"
                 singleMsg={v => `1 dia registrado: ${v}kcal — registre alimentos em outros dias para ver a evolução`}
                 emptyMsg="Nenhum alimento registrado ainda. Registre na aba Dieta."
+              />
+            )}
+          </div>
+        </div>
+
+        <div className="dash-card">
+          <div className="dash-card__title">Proteína consumida por dia</div>
+          <div className="line-chart-wrap">
+            {loading ? <Skeleton height={130} /> : (
+              <LineChart
+                points={macroPoints.proteina}
+                valueSuffix="g"
+                singleMsg={v => `1 dia registrado: ${v}g — registre alimentos em outros dias para ver a evolução`}
+                emptyMsg="Nenhum alimento registrado ainda. Registre na aba Dieta."
+              />
+            )}
+          </div>
+        </div>
+
+        <div className="dash-card">
+          <div className="dash-card__title">Carboidrato consumido por dia</div>
+          <div className="line-chart-wrap">
+            {loading ? <Skeleton height={130} /> : (
+              <LineChart
+                points={macroPoints.carboidrato}
+                valueSuffix="g"
+                singleMsg={v => `1 dia registrado: ${v}g — registre alimentos em outros dias para ver a evolução`}
+                emptyMsg="Nenhum alimento registrado ainda. Registre na aba Dieta."
+              />
+            )}
+          </div>
+        </div>
+
+        <div className="dash-card">
+          <div className="dash-card__title">Gordura consumida por dia</div>
+          <div className="line-chart-wrap">
+            {loading ? <Skeleton height={130} /> : (
+              <LineChart
+                points={macroPoints.gordura}
+                valueSuffix="g"
+                singleMsg={v => `1 dia registrado: ${v}g — registre alimentos em outros dias para ver a evolução`}
+                emptyMsg="Nenhum alimento registrado ainda. Registre na aba Dieta."
+              />
+            )}
+          </div>
+        </div>
+
+        <div className="dash-card">
+          <div className="dash-card__title">Água consumida por dia</div>
+          <div className="line-chart-wrap">
+            {loading ? <Skeleton height={130} /> : (
+              <LineChart
+                points={waterPoints}
+                valueSuffix="L"
+                singleMsg={v => `1 dia registrado: ${v}L — registre água em outros dias para ver a evolução`}
+                emptyMsg="Nenhuma água registrada ainda. Registre na aba Água."
               />
             )}
           </div>
