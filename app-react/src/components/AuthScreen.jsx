@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import logoMark from '../assets/logo-mark.png';
 
 export default function AuthScreen() {
   const { login, signup } = useAuth();
@@ -35,7 +36,7 @@ export default function AuthScreen() {
     <div id="authScreen" className="auth-screen">
       <div className="auth-inner">
         <div className="auth-logo">
-          <div className="auth-logo__icon">💪</div>
+          <img className="auth-logo__icon" src={logoMark} alt="IronFit" />
           <div className="auth-logo__name">IRONFIT</div>
           <p className="auth-logo__tagline">Treino e dieta em um só lugar</p>
         </div>

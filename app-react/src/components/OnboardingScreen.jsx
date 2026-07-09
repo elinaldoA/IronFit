@@ -4,6 +4,7 @@ import { useToast } from '../context/ToastContext';
 import { generatePlan } from '../data/workoutTemplates';
 import { generateMealPlan } from '../data/mealTemplates';
 import { seedGeneratedPlan } from '../lib/workoutPlans';
+import logoMark from '../assets/logo-mark.png';
 
 export default function OnboardingScreen() {
   const { user, updateProfile } = useAuth();
@@ -63,7 +64,7 @@ export default function OnboardingScreen() {
     <div className="auth-screen">
       <div className="auth-inner">
         <div className="auth-logo">
-          <div className="auth-logo__icon">💪</div>
+          <img className="auth-logo__icon" src={logoMark} alt="IronFit" />
           <div className="auth-logo__name">IRONFIT</div>
           <p className="auth-logo__tagline">Vamos montar seu treino e sua dieta</p>
         </div>

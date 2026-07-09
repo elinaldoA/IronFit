@@ -121,8 +121,8 @@ button, input { font-family: inherit; }
 }
 
 .auth-logo__icon {
-  font-size: 3.2rem;
-  line-height: 1;
+  width: 130px;
+  height: 130px;
   margin-bottom: 4px;
   filter: drop-shadow(0 0 24px var(--primary));
 }
