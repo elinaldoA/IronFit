@@ -63,7 +63,7 @@ export default function OnboardingScreen() {
     <div className="auth-screen">
       <div className="auth-inner">
         <div className="auth-logo">
-          <div className="auth-logo__icon">⚡</div>
+          <div className="auth-logo__icon">💪</div>
           <div className="auth-logo__name">IRONFIT</div>
           <p className="auth-logo__tagline">Vamos montar seu treino e sua dieta</p>
         </div>

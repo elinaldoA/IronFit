@@ -35,7 +35,7 @@ export default function AuthScreen() {
     <div id="authScreen" className="auth-screen">
       <div className="auth-inner">
         <div className="auth-logo">
-          <div className="auth-logo__icon">⚡</div>
+          <div className="auth-logo__icon">💪</div>
           <div className="auth-logo__name">IRONFIT</div>
           <p className="auth-logo__tagline">Treino e dieta em um só lugar</p>
         </div>
