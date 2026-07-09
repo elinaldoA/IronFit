@@ -7,6 +7,7 @@ export default function AuthScreen() {
   const [password, setPassword] = useState('');
   const [msg, setMsg] = useState({ text: '', type: '' });
   const [busy, setBusy] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   async function handleLogin() {
     if (!email.trim() || !password) { setMsg({ text: 'Preencha e-mail e senha.', type: 'error' }); return; }
@@ -50,7 +51,15 @@ export default function AuthScreen() {
           <button className="btn btn--primary btn--full" disabled={busy} onClick={handleLogin}>
             {busy ? 'Entrando…' : 'Entrar'}
           </button>
-          <button className="btn btn--outline btn--full" disabled={busy} onClick={handleSignup}>
+          <label className="auth-form__terms">
+            <input
+              type="checkbox" checked={acceptedTerms}
+              onChange={e => setAcceptedTerms(e.target.checked)}
+            />
+            Li e aceito os <a href="legal/termos.html" target="_blank" rel="noopener noreferrer">Termos de Uso</a> e a{' '}
+            <a href="legal/privacidade.html" target="_blank" rel="noopener noreferrer">Política de Privacidade</a>
+          </label>
+          <button className="btn btn--outline btn--full" disabled={busy || !acceptedTerms} onClick={handleSignup}>
             {busy ? 'Criando…' : 'Criar conta'}
           </button>
           <p className={`auth-form__msg${msg.type ? ' auth-form__msg--' + msg.type : ''}`}>{msg.text}</p>

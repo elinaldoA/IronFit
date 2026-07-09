@@ -80,3 +80,22 @@ npm run build    # build de produção em app-react/dist
 O deploy é automático: qualquer push em `main` que altere arquivos dentro de `app-react/` dispara o workflow `.github/workflows/deploy.yml`, que builda o projeto e publica no GitHub Pages.
 
 Migrations do Supabase (`supabase/migrations/`) não são aplicadas em produção automaticamente — rode `supabase db push` localmente (com o CLI já linkado ao projeto) sempre que adicionar uma migration nova.
+
+## Antes de abrir pra outras pessoas
+
+O app já suporta múltiplas contas (cadastro por e-mail, RLS isolando os dados de cada
+usuário) e tem Termos de Uso + Política de Privacidade em `app-react/public/legal/`
+(com checkbox obrigatório no cadastro). Antes de divulgar amplamente, faltam alguns
+passos manuais:
+
+- **Revisão jurídica dos textos legais**: `legal/termos.html` e `legal/privacidade.html`
+  são rascunho, com placeholders (`[nome/razão social]`, `[e-mail de contato]`, etc.) —
+  preencher e pedir revisão antes de tratar como documento válido.
+- **Leaked password protection**: ativar em Authentication → Policies no dashboard do
+  Supabase (não dá pra fazer via CLI sem risco de sobrescrever outras configs de Auth).
+- **E-mail transacional**: o SMTP embutido do Supabase tem limite baixo de e-mails/hora.
+  Se confirmação de cadastro ou reset de senha começarem a falhar silenciosamente com
+  mais gente se cadastrando, configurar um provedor próprio (Resend, SES, etc.) em
+  Authentication → Email Templates → SMTP.
+- **Custo/escala**: checar os limites do plano atual do Supabase (linhas de banco,
+  storage de fotos, invocações de Edge Function) antes de divulgar amplamente.

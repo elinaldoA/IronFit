@@ -17,6 +17,7 @@ import { isNotificationSupported, isIosSafariNotInstalled, sendNotification, isN
 import { useReminders } from '../hooks/useReminders';
 import { exportSummaryCSV, exportBackupJSON, printReport } from '../lib/exportData';
 import LineChart from '../components/LineChart';
+import { version as APP_VERSION } from '../../package.json';
 
 const NOTIFY_PREFS = [
   { key: 'notifyStreakRisk', label: 'Sequência em risco (à noite, se ainda não treinou hoje)' },
@@ -587,6 +588,7 @@ export default function PerfilPage({ active }) {
 
         <button className="btn btn--outline btn--full" onClick={logout}>Sair da conta</button>
         <button className="btn btn--ghost btn--full" onClick={handleDeleteAccount}>Excluir conta</button>
+        <p className="app-version">IronFit v{APP_VERSION}</p>
       </div>
     </section>
   );

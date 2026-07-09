@@ -159,6 +159,23 @@ button, input { font-family: inherit; }
 .auth-form__msg--error   { color: var(--error); }
 .auth-form__msg--success { color: var(--success); }
 
+.auth-form__terms {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+.auth-form__terms input { margin-top: 3px; flex-shrink: 0; }
+
+.app-version {
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
 /* ============================================================
    APP SCREEN
 ============================================================ */

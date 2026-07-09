@@ -39,7 +39,10 @@ export function AuthProvider({ children }) {
 
   async function signup(email, password) {
     if (password.length < 6) return { error: 'Senha: mínimo 6 caracteres.' };
-    const { data, error } = await db.auth.signUp({ email, password });
+    const { data, error } = await db.auth.signUp({
+      email, password,
+      options: { data: { termsAcceptedAt: new Date().toISOString() } },
+    });
     if (error) return { error: error.message };
     if (data.session) {
       setUser(data.user);
