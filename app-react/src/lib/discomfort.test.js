@@ -1,4 +1,11 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+
+// summarizeDiscomfortByExercise é lógica pura e não usa `db`, mas o import de
+// discomfort.js arrasta lib/supabase.js, que chama createClient() na hora do
+// import — sem VITE_SUPABASE_URL (não setado no step de test do CI) isso
+// lança. Mocka pra manter o teste isolado de configuração de ambiente.
+vi.mock('./supabase', () => ({ db: {} }));
+
 import { summarizeDiscomfortByExercise } from './discomfort';
 
 describe('summarizeDiscomfortByExercise', () => {
