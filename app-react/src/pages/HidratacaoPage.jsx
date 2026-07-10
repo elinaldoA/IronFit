@@ -7,6 +7,7 @@ import { fetchWaterLog, upsertWaterLog, fetchWaterLogsRange } from '../lib/dieta
 import { enqueue } from '../lib/syncQueue';
 import { fmtDate, parseLocalDate, toDateStr } from '../lib/utils';
 import LineChart from '../components/LineChart';
+import Skeleton from '../components/Skeleton';
 
 function getWaterMl() {
   return parseInt(localStorage.getItem(WATER_STORAGE_KEY), 10) || 0;
@@ -16,10 +17,6 @@ function fmtLiters(ml) {
   return (ml / 1000).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 }
 
-function Skeleton({ height = 120 }) {
-  return <div className="skeleton" style={{ height }} />;
-}
-
 export default function HidratacaoPage({ active }) {
   const { user } = useAuth();
   const { markPending } = useWorkout();
@@ -27,7 +24,7 @@ export default function HidratacaoPage({ active }) {
   const macros = useMemo(() => getMacroGoals(user), [user]);
   const goalMl = macros.macroAgua * 1000;
 
-  const [tick, setTick] = useState(0);
+  const [_tick, setTick] = useState(0);
   const bump = () => setTick(t => t + 1);
   const [waterLogs, setWaterLogs] = useState([]);
   const [loading, setLoading] = useState(false);

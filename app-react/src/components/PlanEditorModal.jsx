@@ -103,6 +103,10 @@ function MoveButtons({ canUp, canDown, onMove }) {
 
 function ExerciseRow({ ex, canUp, canDown, onMove, onChange, onDelete }) {
   const [local, setLocal] = useState(ex);
+  // Ressincroniza só ao trocar de exercício (por id) — incluir `ex` inteiro
+  // resetaria `local` a cada render do pai, descartando edição em andamento
+  // antes do onBlur salvar.
+  // oxlint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { setLocal(ex); }, [ex.id]);
 
   function save(field) {

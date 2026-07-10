@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { ToastProvider } from './context/ToastContext';
@@ -10,13 +10,24 @@ import ThemeToggle from './components/ThemeToggle';
 import UserChip from './components/UserChip';
 import TopbarProfile from './components/TopbarProfile';
 import BottomNav from './components/BottomNav';
-import TreinoPage from './pages/TreinoPage';
-import DietaPage from './pages/DietaPage';
-import HidratacaoPage from './pages/HidratacaoPage';
-import DashPage from './pages/DashPage';
-import PerfilPage from './pages/PerfilPage';
 import UpdatePrompt from './components/UpdatePrompt';
 import ReminderScheduler from './components/ReminderScheduler';
+
+const TreinoPage = lazy(() => import('./pages/TreinoPage'));
+const DietaPage = lazy(() => import('./pages/DietaPage'));
+const HidratacaoPage = lazy(() => import('./pages/HidratacaoPage'));
+const DashPage = lazy(() => import('./pages/DashPage'));
+const PerfilPage = lazy(() => import('./pages/PerfilPage'));
+
+function PageFallback() {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: 16 }}>
+      <div className="skeleton" style={{ height: 130 }} />
+      <div className="skeleton" style={{ height: 130 }} />
+      <div className="skeleton" style={{ height: 130 }} />
+    </div>
+  );
+}
 
 function Shell() {
   const { user, authLoading } = useAuth();
@@ -46,11 +57,13 @@ function Shell() {
               </header>
 
               <main className="pages">
-                {page === 'treino' && <TreinoPage />}
-                {page === 'dieta' && <DietaPage />}
-                {page === 'hidratacao' && <HidratacaoPage active={page === 'hidratacao'} />}
-                {page === 'dash' && <DashPage active={page === 'dash'} />}
-                {page === 'perfil' && <PerfilPage active={page === 'perfil'} />}
+                <Suspense fallback={<PageFallback />}>
+                  {page === 'treino' && <TreinoPage />}
+                  {page === 'dieta' && <DietaPage />}
+                  {page === 'hidratacao' && <HidratacaoPage active={page === 'hidratacao'} />}
+                  {page === 'dash' && <DashPage active={page === 'dash'} />}
+                  {page === 'perfil' && <PerfilPage active={page === 'perfil'} />}
+                </Suspense>
               </main>
 
               <BottomNav active={page} onChange={setPage} />

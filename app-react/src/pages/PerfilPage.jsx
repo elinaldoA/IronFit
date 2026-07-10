@@ -1,56 +1,26 @@
-import { useEffect, useMemo, useState } from 'react';
-import { db } from '../lib/supabase';
+import { useMemo, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useAvatar } from '../context/AvatarContext';
 import { useWorkout } from '../context/WorkoutContext';
 import { enqueue } from '../lib/syncQueue';
-import { getWeekStart, calcStreak, fmtDate, getDisplayName } from '../lib/utils';
-import { TODAY_DATE } from '../data/treinoData';
+import { fmtDate } from '../lib/utils';
+import { TODAY_DATE, DEFAULT_WEEKLY_GOAL } from '../data/treinoData';
 import { fetchWeightLogs, upsertWeightLog } from '../lib/weightLog';
 import { saveAvatar } from '../lib/avatar';
-import { DEFAULT_MACROS, DEFAULT_WEEKLY_GOAL } from '../data/treinoData';
 import { generatePlan } from '../data/workoutTemplates';
 import { generateMealPlan } from '../data/mealTemplates';
 import { createGeneratedPlan } from '../lib/workoutPlans';
-import { isNotificationSupported, isIosSafariNotInstalled, sendNotification, isNotifyEnabled } from '../lib/notifications';
 import { useReminders } from '../hooks/useReminders';
-import { exportSummaryCSV, exportBackupJSON, printReport } from '../lib/exportData';
+import { useProfileData } from '../hooks/useProfileData';
 import LineChart from '../components/LineChart';
-import { version as APP_VERSION } from '../../package.json';
-
-const NOTIFY_PREFS = [
-  { key: 'notifyStreakRisk', label: 'Sequência em risco (à noite, se ainda não treinou hoje)' },
-  { key: 'notifyInactivity', label: 'Voltar a treinar (dias parado)' },
-  { key: 'notifyWeeklySummary', label: 'Resumo semanal (segunda de manhã)' },
-  { key: 'notifyWeightUpdate', label: 'Atualizar peso (segunda de manhã)' },
-  { key: 'notifyRecords', label: 'Recordes e conquistas' },
-  { key: 'notifyDiscomfortFollowup', label: 'Follow-up de desconforto (dias após relato forte/lesão)' },
-];
-
-function imcInfo(peso, altura) {
-  if (!peso || !altura || peso < 30 || altura < 100) return null;
-  const imc = peso / ((altura / 100) ** 2);
-  const cls =
-    imc < 18.5 ? 'Abaixo do peso' :
-    imc < 25 ? 'Peso normal' :
-    imc < 30 ? 'Sobrepeso' :
-    imc < 35 ? 'Obesidade grau I' : 'Obesidade grau II+';
-  return { value: imc.toFixed(1), cls };
-}
-
-function metaProgress(pesoAtual, pesoAlvo, weightLogs) {
-  if (!pesoAtual || !pesoAlvo) return null;
-  const diff = pesoAtual - pesoAlvo;
-  if (Math.abs(diff) < 0.1) return { done: true, msg: '🎉 Meta de peso alcançada!' };
-
-  const first = weightLogs[0]?.peso ?? pesoAtual;
-  const totalSpan = Math.abs(first - pesoAlvo) || 1;
-  const covered = Math.abs(first - pesoAtual);
-  const pct = Math.max(0, Math.min(100, (covered / totalSpan) * 100));
-  const msg = `Faltam ${Math.abs(diff).toFixed(1)}kg para a meta de ${pesoAlvo}kg`;
-  return { done: false, pct, msg };
-}
+import ProfileHeader from '../components/ProfileHeader';
+import ProfilePersonalSection from '../components/ProfilePersonalSection';
+import ProfileBodySection from '../components/ProfileBodySection';
+import { imcInfo, metaProgress } from '../lib/profileCalc';
+import { WeeklyGoalSection, MacrosSection } from '../components/ProfileGoalsSection';
+import ProfilePreferencesSection from '../components/ProfilePreferencesSection';
+import ProfileAccountSection from '../components/ProfileAccountSection';
 
 export default function PerfilPage({ active }) {
   const { user, logout, updateProfile, updateEmail, updatePassword, deleteAccount } = useAuth();
@@ -74,8 +44,7 @@ export default function PerfilPage({ active }) {
   const [macroGordura, setMacroGordura] = useState(md.macroGordura || localStorage.getItem('profile_macroGordura') || '');
   const [macroAgua, setMacroAgua] = useState(md.macroAgua || localStorage.getItem('profile_macroAgua') || '');
   const [weeklyGoal, setWeeklyGoal] = useState(md.weeklyGoal || localStorage.getItem('profile_weeklyGoal') || DEFAULT_WEEKLY_GOAL);
-  const [stats, setStats] = useState({ total: '–', week: '–', streak: '–' });
-  const [weightLogs, setWeightLogs] = useState([]);
+  const { stats, weightLogs, setWeightLogs } = useProfileData(active, user, toast);
   const { avatarData, setAvatarData } = useAvatar();
   const [remindersEnabled, toggleReminders] = useReminders(toast, user);
 
@@ -115,33 +84,6 @@ export default function PerfilPage({ active }) {
       setUploadingAvatar(false);
     }
   }
-
-  useEffect(() => {
-    if (!active || !user) return;
-
-    async function loadProfileData() {
-      try {
-        const [{ data: workouts, error }, weights] = await Promise.all([
-          db.from('workouts').select('id, workout_date, duration_seconds').eq('user_id', user.id).eq('completed', true).order('workout_date', { ascending: false }),
-          fetchWeightLogs(user.id),
-        ]);
-        if (error) throw error;
-        setWeightLogs(weights);
-
-        const total = workouts.length;
-        const wStart = getWeekStart();
-        const week = workouts.filter(w => w.workout_date >= wStart).length;
-        const streak = calcStreak(workouts.map(w => w.workout_date));
-
-        setStats({ total, week, streak: streak > 0 ? `${streak}d` : '0d' });
-      } catch (err) {
-        console.error('loadProfileStats:', err);
-        toast('⚠️ Erro ao carregar estatísticas');
-      }
-    }
-
-    loadProfileData();
-  }, [active, user, toast]);
 
   async function handleSavePersonal() {
     localStorage.setItem('profile_nome', nome);
@@ -264,7 +206,6 @@ export default function PerfilPage({ active }) {
   }
 
   const weeklyGoalNum = parseInt(weeklyGoal, 10) || DEFAULT_WEEKLY_GOAL;
-  const since = user ? new Date(user.created_at) : null;
   const imc = imcInfo(parseFloat(peso), parseFloat(altura));
   const progress = useMemo(
     () => metaProgress(parseFloat(peso), parseFloat(pesoAlvo), weightLogs),
@@ -277,216 +218,38 @@ export default function PerfilPage({ active }) {
 
   return (
     <section id="page-perfil" className="page active">
-      <div className="profile-hero">
-        <label className={`profile-avatar${avatarData ? ' profile-avatar--photo' : ''}`}>
-          {avatarData
-            ? <img src={avatarData} alt="Foto de perfil" className="profile-avatar__img" />
-            : (user?.email?.[0]?.toUpperCase() || '?')}
-          <span className="profile-avatar__edit">{uploadingAvatar ? '…' : '📷'}</span>
-          <input type="file" accept="image/*" hidden disabled={uploadingAvatar} onChange={handleAvatarChange} />
-        </label>
-        <div className="profile-hero__info">
-          <div className="profile-email">{getDisplayName(user) || '–'}</div>
-          {user?.email && user.email !== getDisplayName(user) && (
-            <div className="profile-handle">{user.email}</div>
-          )}
-          <div className="profile-since">
-            {since ? 'Membro desde ' + since.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }) : '–'}
-          </div>
-        </div>
-      </div>
-
-      <div className="stats-grid">
-        <div className="stat-card">
-          <span className="stat-card__value">
-            {typeof stats.week === 'number' ? `${stats.week}/${weeklyGoalNum}` : stats.week}
-          </span>
-          <span className="stat-card__label">Esta semana</span>
-        </div>
-        <div className="stat-card stat-card--streak">
-          <span className="stat-card__value">{stats.streak}</span>
-          <span className="stat-card__label">Sequência 🔥</span>
-        </div>
-        <div className="stat-card">
-          <span className="stat-card__value">{stats.total}</span>
-          <span className="stat-card__label">Total treinos</span>
-        </div>
-      </div>
+      <ProfileHeader
+        user={user} avatarData={avatarData} uploadingAvatar={uploadingAvatar}
+        onAvatarChange={handleAvatarChange} stats={stats} weeklyGoalNum={weeklyGoalNum}
+      />
 
       <div className="section-group">
         <div className="section-group__label">Meus dados</div>
 
-        <div className="profile-section">
-          <div className="profile-section__title">Dados pessoais</div>
-          <div className="profile-section__fields">
-            <div className="profile-field">
-              <label className="profile-field__label" htmlFor="profileNome">Nome</label>
-              <input
-                type="text" id="profileNome" className="input input--sm" placeholder="Ex: João"
-                value={nome} onChange={e => setNome(e.target.value)}
-              />
-            </div>
-            <div className="profile-field">
-              <label className="profile-field__label" htmlFor="profileSobrenome">Sobrenome</label>
-              <input
-                type="text" id="profileSobrenome" className="input input--sm" placeholder="Ex: Silva"
-                value={sobrenome} onChange={e => setSobrenome(e.target.value)}
-              />
-            </div>
-          </div>
-          <div className="profile-field">
-            <label className="profile-field__label" htmlFor="profileApelido">Apelido</label>
-            <input
-              type="text" id="profileApelido" className="input input--sm" placeholder="Como prefere ser chamado"
-              value={apelido} onChange={e => setApelido(e.target.value)}
-            />
-          </div>
-          <button className="btn btn--primary btn--full" onClick={handleSavePersonal}>Salvar dados pessoais</button>
-        </div>
+        <ProfilePersonalSection
+          nome={nome} setNome={setNome} sobrenome={sobrenome} setSobrenome={setSobrenome}
+          apelido={apelido} setApelido={setApelido} onSave={handleSavePersonal}
+        />
 
-        <div className="profile-section">
-          <div className="profile-section__title">Meu Corpo</div>
-          <div className="profile-section__fields">
-            <div className="profile-field">
-              <label className="profile-field__label" htmlFor="profileSexo">Sexo biológico</label>
-              <select id="profileSexo" className="input input--sm" value={sexo} onChange={e => setSexo(e.target.value)}>
-                <option value="" disabled>Selecione</option>
-                <option value="M">Masculino</option>
-                <option value="F">Feminino</option>
-              </select>
-            </div>
-            <div className="profile-field">
-              <label className="profile-field__label" htmlFor="profileIdade">Idade</label>
-              <input
-                type="number" id="profileIdade" className="input input--sm" placeholder="Ex: 28"
-                min="14" max="100" value={idade} onChange={e => setIdade(e.target.value)}
-              />
-            </div>
-          </div>
-          <div className="profile-section__fields">
-            <div className="profile-field">
-              <label className="profile-field__label" htmlFor="profilePeso">Peso (kg)</label>
-              <input
-                type="number" id="profilePeso" className="input input--sm" placeholder="Ex: 85"
-                min="30" max="300" step="0.1" value={peso} onChange={e => setPeso(e.target.value)}
-              />
-            </div>
-            <div className="profile-field">
-              <label className="profile-field__label" htmlFor="profileAltura">Altura (cm)</label>
-              <input
-                type="number" id="profileAltura" className="input input--sm" placeholder="Ex: 178"
-                min="100" max="250" value={altura} onChange={e => setAltura(e.target.value)}
-              />
-            </div>
-          </div>
-          <div className="profile-field">
-            <label className="profile-field__label" htmlFor="profileMeta">Meta principal</label>
-            <select id="profileMeta" className="input input--sm" value={meta} onChange={e => setMeta(e.target.value)}>
-              <option value="massa">Ganho de massa</option>
-              <option value="forca">Aumento de força</option>
-              <option value="emagrecer">Emagrecimento</option>
-              <option value="definicao">Definição muscular</option>
-              <option value="saude">Saúde e bem-estar</option>
-            </select>
-          </div>
-          <div className="profile-field">
-            <label className="profile-field__label" htmlFor="profileNivel">Nível de experiência</label>
-            <select id="profileNivel" className="input input--sm" value={nivel} onChange={e => setNivel(e.target.value)}>
-              <option value="iniciante">Iniciante</option>
-              <option value="intermediario">Intermediário</option>
-              <option value="avancado">Avançado</option>
-            </select>
-          </div>
-          <div className="profile-field">
-            <label className="profile-field__label" htmlFor="profilePesoAlvo">Peso alvo (kg)</label>
-            <input
-              type="number" id="profilePesoAlvo" className="input input--sm" placeholder="Ex: 80"
-              min="30" max="300" step="0.1" value={pesoAlvo} onChange={e => setPesoAlvo(e.target.value)}
-            />
-          </div>
-          {progress && (
-            <div className="progress-card">
-              <div className="progress-card__row">
-                <span className="progress-card__label">{progress.msg}</span>
-              </div>
-              {!progress.done && (
-                <div className="progress-card__bar">
-                  <div className="progress-card__fill" style={{ width: `${progress.pct}%` }} />
-                </div>
-              )}
-            </div>
-          )}
-          {imc && (
-            <div className="imc-card">
-              <span className="imc-card__label">IMC</span>
-              <span className="imc-card__value">{imc.value}</span>
-              <span className="imc-card__class">{imc.cls}</span>
-            </div>
-          )}
-          <button className="btn btn--primary btn--full" onClick={handleSave}>Salvar dados corporais</button>
-          <button className="btn btn--outline btn--full" disabled={regenerating} onClick={handleRegeneratePlan}>
-            {regenerating ? 'Gerando novo treino…' : '🔄 Gerar novo treino com esses dados'}
-          </button>
-        </div>
+        <ProfileBodySection
+          sexo={sexo} setSexo={setSexo} idade={idade} setIdade={setIdade}
+          peso={peso} setPeso={setPeso} altura={altura} setAltura={setAltura}
+          meta={meta} setMeta={setMeta} nivel={nivel} setNivel={setNivel}
+          pesoAlvo={pesoAlvo} setPesoAlvo={setPesoAlvo}
+          progress={progress} imc={imc} onSave={handleSave}
+          regenerating={regenerating} onRegeneratePlan={handleRegeneratePlan}
+        />
 
-        <div className="profile-section">
-          <div className="profile-section__title">Meta Semanal de Treinos</div>
-          <div className="profile-field">
-            <label className="profile-field__label" htmlFor="weeklyGoal">Treinos por semana</label>
-            <input
-              type="number" id="weeklyGoal" className="input input--sm" placeholder={String(DEFAULT_WEEKLY_GOAL)}
-              min="1" max="7" step="1" value={weeklyGoal} onChange={e => setWeeklyGoal(e.target.value)}
-            />
-          </div>
-          <button className="btn btn--primary btn--full" onClick={handleSaveWeeklyGoal}>Salvar meta semanal</button>
-        </div>
+        <WeeklyGoalSection weeklyGoal={weeklyGoal} setWeeklyGoal={setWeeklyGoal} onSave={handleSaveWeeklyGoal} />
 
-        <div className="profile-section">
-          <div className="profile-section__title">Metas de Macros</div>
-          <div className="profile-section__fields">
-            <div className="profile-field">
-              <label className="profile-field__label" htmlFor="macroKcal">Kcal</label>
-              <input
-                type="number" id="macroKcal" className="input input--sm" placeholder={String(DEFAULT_MACROS.macroKcal)}
-                min="0" step="10" value={macroKcal} onChange={e => setMacroKcal(e.target.value)}
-              />
-            </div>
-            <div className="profile-field">
-              <label className="profile-field__label" htmlFor="macroProteina">Proteína (g)</label>
-              <input
-                type="number" id="macroProteina" className="input input--sm" placeholder={String(DEFAULT_MACROS.macroProteina)}
-                min="0" step="5" value={macroProteina} onChange={e => setMacroProteina(e.target.value)}
-              />
-            </div>
-          </div>
-          <div className="profile-section__fields">
-            <div className="profile-field">
-              <label className="profile-field__label" htmlFor="macroCarboidrato">Carboidrato (g)</label>
-              <input
-                type="number" id="macroCarboidrato" className="input input--sm" placeholder={String(DEFAULT_MACROS.macroCarboidrato)}
-                min="0" step="5" value={macroCarboidrato} onChange={e => setMacroCarboidrato(e.target.value)}
-              />
-            </div>
-            <div className="profile-field">
-              <label className="profile-field__label" htmlFor="macroGordura">Gordura (g)</label>
-              <input
-                type="number" id="macroGordura" className="input input--sm" placeholder={String(DEFAULT_MACROS.macroGordura)}
-                min="0" step="5" value={macroGordura} onChange={e => setMacroGordura(e.target.value)}
-              />
-            </div>
-          </div>
-          <div className="profile-field">
-            <label className="profile-field__label" htmlFor="macroAgua">Meta de água (L)</label>
-            <input
-              type="number" id="macroAgua" className="input input--sm" placeholder={String(DEFAULT_MACROS.macroAgua)}
-              min="0" step="0.5" value={macroAgua} onChange={e => setMacroAgua(e.target.value)}
-            />
-          </div>
-          <button className="btn btn--primary btn--full" onClick={handleSaveMacros}>Salvar metas de macros</button>
-          <button className="btn btn--outline btn--full" disabled={regeneratingMeals} onClick={handleRegenerateMeals}>
-            {regeneratingMeals ? 'Gerando novo cardápio…' : '🔄 Gerar novo cardápio com esse objetivo'}
-          </button>
-        </div>
+        <MacrosSection
+          macroKcal={macroKcal} setMacroKcal={setMacroKcal}
+          macroProteina={macroProteina} setMacroProteina={setMacroProteina}
+          macroCarboidrato={macroCarboidrato} setMacroCarboidrato={setMacroCarboidrato}
+          macroGordura={macroGordura} setMacroGordura={setMacroGordura}
+          macroAgua={macroAgua} setMacroAgua={setMacroAgua}
+          onSave={handleSaveMacros} regeneratingMeals={regeneratingMeals} onRegenerateMeals={handleRegenerateMeals}
+        />
       </div>
 
       <div className="section-group">
@@ -507,95 +270,21 @@ export default function PerfilPage({ active }) {
 
       <div className="section-group">
         <div className="section-group__label">Preferências</div>
-
-        <div className="profile-section">
-          <div className="profile-section__title">Notificações</div>
-          <div className="profile-field profile-field--row">
-            <label className="profile-field__label" htmlFor="remindersToggle">
-              Lembretes de refeição, treino e água (app aberto)
-            </label>
-            <input
-              type="checkbox" id="remindersToggle"
-              checked={remindersEnabled} onChange={toggleReminders}
-              disabled={!isNotificationSupported()}
-            />
-          </div>
-          {!isNotificationSupported() && (
-            <p className="dash-empty">
-              {isIosSafariNotInstalled()
-                ? 'No iPhone/iPad, notificações só funcionam depois de instalar o app: toque em Compartilhar → "Adicionar à Tela de Início".'
-                : 'Notificações não são suportadas neste navegador.'}
-            </p>
-          )}
-          <button
-            className="btn btn--outline btn--sm"
-            disabled={!isNotificationSupported()}
-            onClick={() => sendNotification('🔔 Notificação de teste', { body: 'Se você está vendo isso, está tudo funcionando!' })
-              .then(() => toast('✅ Notificação enviada'))
-              .catch(err => toast(`❌ Falhou: ${err.message}`))}
-          >Testar notificação</button>
-
-          {NOTIFY_PREFS.map(({ key, label }) => (
-            <div className="profile-field profile-field--row" key={key}>
-              <label className="profile-field__label" htmlFor={key}>{label}</label>
-              <input
-                type="checkbox" id={key}
-                checked={isNotifyEnabled(user.user_metadata, key)}
-                disabled={!remindersEnabled}
-                onChange={e => updateProfile({ [key]: e.target.checked })
-                  .then(({ error }) => error && toast(`❌ ${error.message}`))}
-              />
-            </div>
-          ))}
-        </div>
-
-        <div className="profile-section">
-          <div className="profile-section__title">Exportar e backup</div>
-          <p className="dash-empty">Baixe seus dados a qualquer momento — nenhuma biblioteca externa é usada, tudo é gerado no seu navegador.</p>
-          <div className="export-actions">
-            <button className="btn btn--outline btn--sm" disabled={exporting} onClick={() => handleExport(exportSummaryCSV, 'o resumo (CSV)')}>📊 Resumo (CSV)</button>
-            <button className="btn btn--outline btn--sm" disabled={exporting} onClick={() => handleExport(exportBackupJSON, 'o backup (JSON)')}>💾 Backup completo (JSON)</button>
-            <button className="btn btn--outline btn--sm" disabled={exporting} onClick={() => handleExport(printReport, 'o relatório')}>🖨️ Relatório para imprimir</button>
-          </div>
-        </div>
+        <ProfilePreferencesSection
+          user={user} updateProfile={updateProfile} toast={toast}
+          remindersEnabled={remindersEnabled} toggleReminders={toggleReminders}
+          exporting={exporting} onExport={handleExport}
+        />
       </div>
 
       <div className="section-group">
         <div className="section-group__label">Conta</div>
-
-        <div className="profile-section">
-          <button
-            type="button"
-            className="profile-section__title"
-            onClick={() => setAccountOpen(o => !o)}
-          >
-            Alterar e-mail / senha {accountOpen ? '▲' : '▼'}
-          </button>
-          {accountOpen && (
-            <>
-              <div className="profile-field">
-                <label className="profile-field__label" htmlFor="newEmail">Novo e-mail</label>
-                <input
-                  type="email" id="newEmail" className="input input--sm" placeholder={user?.email}
-                  value={newEmail} onChange={e => setNewEmail(e.target.value)}
-                />
-                <button className="btn btn--outline btn--sm" onClick={handleUpdateEmail}>Atualizar e-mail</button>
-              </div>
-              <div className="profile-field">
-                <label className="profile-field__label" htmlFor="newPassword">Nova senha</label>
-                <input
-                  type="password" id="newPassword" className="input input--sm" placeholder="Mínimo 6 caracteres"
-                  value={newPassword} onChange={e => setNewPassword(e.target.value)}
-                />
-                <button className="btn btn--outline btn--sm" onClick={handleUpdatePassword}>Atualizar senha</button>
-              </div>
-            </>
-          )}
-        </div>
-
-        <button className="btn btn--outline btn--full" onClick={logout}>Sair da conta</button>
-        <button className="btn btn--ghost btn--full" onClick={handleDeleteAccount}>Excluir conta</button>
-        <p className="app-version">IronFit v{APP_VERSION}</p>
+        <ProfileAccountSection
+          user={user} accountOpen={accountOpen} setAccountOpen={setAccountOpen}
+          newEmail={newEmail} setNewEmail={setNewEmail} onUpdateEmail={handleUpdateEmail}
+          newPassword={newPassword} setNewPassword={setNewPassword} onUpdatePassword={handleUpdatePassword}
+          onLogout={logout} onDeleteAccount={handleDeleteAccount}
+        />
       </div>
     </section>
   );
