@@ -52,7 +52,7 @@ function countSets(exercises) {
   return { done, total };
 }
 
-function SetRow({ ex, n, day, bump, onRestStart }) {
+function SetRow({ ex, n, day, bump, onRestStart, onFillOthers }) {
   const { user } = useAuth();
   const { saveSetState, workoutIds } = useWorkout();
   const toast = useToast();
@@ -102,16 +102,28 @@ function SetRow({ ex, n, day, bump, onRestStart }) {
     repsSaveTimer.current = setTimeout(() => flushReps(val, false), 800);
   }
 
+  // Assim que carga e reps da Série 1 estão preenchidos, propaga pras demais
+  // séries do exercício que ainda estiverem vazias — poupa redigitar o mesmo
+  // peso/reps em cada série. Só dispara pra n===1 (a primeira que o usuário
+  // preenche no fluxo normal) e só nas que estão vazias, pra não sobrescrever
+  // uma série que o usuário já tenha ajustado de propósito (drop-set, pirâmide).
+  function maybeFillOthers(nextCarga, nextReps) {
+    if (n !== 1 || !onFillOthers || nextCarga === '' || nextReps === '') return;
+    onFillOthers(nextCarga, nextReps);
+  }
+
   // Ao sair do campo (blur), salva na hora — sem isso, um F5 rápido logo após
   // digitar pode acontecer antes do debounce de 800ms disparar, perdendo o valor.
   function handleCargaBlur() {
     clearTimeout(cargaSaveTimer.current);
     flushCarga(carga, true);
+    maybeFillOthers(carga, reps);
   }
 
   function handleRepsBlur() {
     clearTimeout(repsSaveTimer.current);
     flushReps(reps, true);
+    maybeFillOthers(carga, reps);
   }
 
   // Reload/fechar de aba destrói os setTimeout pendentes antes deles rodarem —
@@ -194,7 +206,7 @@ function SetRow({ ex, n, day, bump, onRestStart }) {
   );
 }
 
-function ExerciseBlock({ ex, day, bump, onRestStart, open, version, onToggleAll }) {
+function ExerciseBlock({ ex, day, bump, onRestStart, open, version, onToggleAll, onFillOthers }) {
   const { user } = useAuth();
   const [suggestion, setSuggestion] = useState(null);
   const [plateau, setPlateau] = useState(null);
@@ -252,7 +264,7 @@ function ExerciseBlock({ ex, day, bump, onRestStart, open, version, onToggleAll 
       </div>
       <div className="ex-block__sets">
         {Array.from({ length: setCount }, (_, i) => i + 1).map(n => (
-          <SetRow key={`${n}-${version}`} ex={ex} n={n} day={day} bump={bump} onRestStart={onRestStart} />
+          <SetRow key={`${n}-${version}`} ex={ex} n={n} day={day} bump={bump} onRestStart={onRestStart} onFillOthers={onFillOthers} />
         ))}
       </div>
     </div>
@@ -327,6 +339,32 @@ function DayCard({ day, isToday, bump, onRestStart, onFinish }) {
     }
   }
 
+  async function fillOtherSets(ex, setCount, carga, reps) {
+    const cargaNum = parseFloat(carga);
+    if (!Number.isFinite(cargaNum) || reps === '') return;
+
+    const toFill = [];
+    for (let n = 2; n <= setCount; n++) {
+      const existingCarga = localStorage.getItem(`set_${ex.nome}_${n}_carga`);
+      const existingReps = localStorage.getItem(`set_${ex.nome}_${n}_reps`);
+      if (!existingCarga && !existingReps) toFill.push(n);
+    }
+    if (!toFill.length) return;
+
+    toFill.forEach(n => {
+      localStorage.setItem(`set_${ex.nome}_${n}_carga`, carga);
+      localStorage.setItem(`set_${ex.nome}_${n}_reps`, reps);
+    });
+    setMarkVersions(v => ({ ...v, [ex.nome]: (v[ex.nome] || 0) + 1 }));
+    bump();
+    toast('✅ Carga e reps repetidas nas outras séries');
+    if (user) {
+      await Promise.all(
+        toFill.map(n => saveSetState(day.dia, ex.nome, n, { carga: cargaNum, reps: parseFloat(reps) }))
+      );
+    }
+  }
+
   async function handleCheckbox(e) {
     e.stopPropagation();
     const next = e.target.checked;
@@ -343,6 +381,7 @@ function DayCard({ day, isToday, bump, onRestStart, onFinish }) {
         key={ex.nome} ex={ex} day={day} bump={bump} onRestStart={onRestStart}
         open={open} version={markVersions[ex.nome] || 0}
         onToggleAll={() => toggleAllSets(ex, parseInt(ex.series, 10))}
+        onFillOthers={(carga, reps) => fillOtherSets(ex, parseInt(ex.series, 10), carga, reps)}
       />
     );
   }
