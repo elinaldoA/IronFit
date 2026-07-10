@@ -21,6 +21,10 @@ const SYNC_EXECUTORS = {
     const { error } = await db.from('workouts').update({ started_at, finished_at, duration_seconds }).eq('id', id);
     if (error) throw error;
   },
+  workout_rating: async ({ id, rating }) => {
+    const { error } = await db.from('workouts').update({ rating }).eq('id', id);
+    if (error) throw error;
+  },
   set_state: async ({ workout_id, exercise_name, set_number, patch }) => {
     const { error } = await db
       .from('exercise_sets')
@@ -37,6 +41,11 @@ const SYNC_EXECUTORS = {
   workout_timer_by_day: async ({ userId, day, started_at, finished_at, duration_seconds }) => {
     const wId = await ensureWorkoutId(userId, day);
     const { error } = await db.from('workouts').update({ started_at, finished_at, duration_seconds }).eq('id', wId);
+    if (error) throw error;
+  },
+  workout_rating_by_day: async ({ userId, day, rating }) => {
+    const wId = await ensureWorkoutId(userId, day);
+    const { error } = await db.from('workouts').update({ rating }).eq('id', wId);
     if (error) throw error;
   },
   set_state_by_day: async ({ userId, day, exercise_name, set_number, patch }) => {
@@ -252,6 +261,25 @@ export function WorkoutProvider({ children }) {
     }
   }
 
+  async function saveWorkoutRating(dayName, rating) {
+    if (!user) return;
+    let wId;
+    try {
+      wId = workoutIds[dayName] || await ensureWorkoutId(user.id, findDay(dayName));
+      if (!workoutIds[dayName]) setWorkoutIds(ids => ({ ...ids, [dayName]: wId }));
+      const { error } = await db.from('workouts').update({ rating }).eq('id', wId);
+      if (error) throw error;
+    } catch (err) {
+      console.error('saveWorkoutRating:', err);
+      if (wId) {
+        enqueue('workout_rating', { id: wId, rating });
+      } else {
+        enqueue('workout_rating_by_day', { userId: user.id, day: findDay(dayName), rating });
+      }
+      setSyncStatus('pending');
+    }
+  }
+
   async function saveSetState(dayName, exerciseName, setNumber, patch) {
     if (!user) return;
     let wId;
@@ -285,7 +313,7 @@ export function WorkoutProvider({ children }) {
   }
 
   return (
-    <WorkoutContext.Provider value={{ syncStatus, dataVersion, activePlanDays, planExpired, workoutIds, saveWorkoutStatus, saveSetState, saveWorkoutTimer, syncNow, markPending, refreshPlan: loadUserData }}>
+    <WorkoutContext.Provider value={{ syncStatus, dataVersion, activePlanDays, planExpired, workoutIds, saveWorkoutStatus, saveSetState, saveWorkoutTimer, saveWorkoutRating, syncNow, markPending, refreshPlan: loadUserData }}>
       {children}
     </WorkoutContext.Provider>
   );

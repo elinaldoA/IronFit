@@ -420,7 +420,7 @@ function DayCard({ day, isToday, bump, onRestStart, onFinish }) {
 
 export default function TreinoPage() {
   const { user } = useAuth();
-  const { dataVersion, syncStatus, syncNow, activePlanDays, planExpired } = useWorkout();
+  const { dataVersion, syncStatus, syncNow, activePlanDays, planExpired, saveWorkoutRating } = useWorkout();
   const loading = syncStatus === 'loading';
   const [tick, setTick] = useState(0);
   const bump = () => setTick(t => t + 1);
@@ -501,7 +501,11 @@ export default function TreinoPage() {
         <PlanEditorModal onClose={() => setShowPlanEditor(false)} />
       )}
       {summary && (
-        <WorkoutSummaryModal summary={summary} onClose={() => setSummary(null)} />
+        <WorkoutSummaryModal
+          summary={summary}
+          onClose={() => setSummary(null)}
+          onRate={value => saveWorkoutRating(summary.day.dia, value)}
+        />
       )}
     </section>
   );

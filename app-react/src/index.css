@@ -2457,6 +2457,24 @@ button.profile-section__title {
   margin-bottom: 8px;
 }
 
+.rating-picker { display: flex; gap: 8px; }
+
+.rating-picker__btn {
+  flex: 1;
+  font-size: 1.4rem;
+  line-height: 1;
+  padding: 8px 0;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface-3);
+  cursor: pointer;
+}
+
+.rating-picker__btn--selected {
+  border-color: var(--primary);
+  background: var(--surface);
+}
+
 .summary-table { display: flex; flex-direction: column; gap: 10px; }
 
 .summary-table__row {

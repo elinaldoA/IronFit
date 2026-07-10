@@ -7,17 +7,31 @@ import { shareWorkoutSummary } from '../lib/shareCard';
 import { useToast } from '../context/ToastContext';
 import BodyAvatar from './BodyAvatar';
 
-export default function WorkoutSummaryModal({ summary, onClose }) {
+const RATING_OPTIONS = [
+  { value: 1, emoji: '😫', label: 'Muito difícil' },
+  { value: 2, emoji: '😕', label: 'Difícil' },
+  { value: 3, emoji: '😐', label: 'Normal' },
+  { value: 4, emoji: '🙂', label: 'Bom' },
+  { value: 5, emoji: '💪', label: 'Excelente' },
+];
+
+export default function WorkoutSummaryModal({ summary, onClose, onRate }) {
   const { day, durationMs, totalCarga, weekDone, weekTotal, exercises, totalSetsDone, totalPlannedSets } = summary;
   const activeGroups = getMuscleGroupsForDay(day);
   const weekPct = weekTotal ? Math.min(100, (weekDone / weekTotal) * 100) : 0;
   const toast = useToast();
   const [sharing, setSharing] = useState(false);
+  const [rating, setRating] = useState(null);
 
   useEffect(() => {
     document.body.classList.add('modal-open');
     return () => document.body.classList.remove('modal-open');
   }, []);
+
+  function handleRate(value) {
+    setRating(value);
+    onRate(value);
+  }
 
   async function handleShare() {
     if (sharing) return;
@@ -48,6 +62,25 @@ export default function WorkoutSummaryModal({ summary, onClose }) {
         </div>
 
         <div className="summary-modal__body">
+          <div className="summary-section">
+            <div className="summary-section__title">Como foi esse treino?</div>
+            <div className="rating-picker">
+              {RATING_OPTIONS.map(opt => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  className={`rating-picker__btn${rating === opt.value ? ' rating-picker__btn--selected' : ''}`}
+                  onClick={() => handleRate(opt.value)}
+                  aria-label={opt.label}
+                  aria-pressed={rating === opt.value}
+                  title={opt.label}
+                >
+                  {opt.emoji}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="summary-stats">
             <div className="stat-card">
               <span className="stat-card__value">{formatDuration(durationMs)}</span>
