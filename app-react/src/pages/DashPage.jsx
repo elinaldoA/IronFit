@@ -18,7 +18,7 @@ export default function DashPage({ active }) {
   const { activePlanDays } = useWorkout();
   const toast = useToast();
   const {
-    workouts, logs, allTimeLogs, loading, loadingPR, unlockedBadges, discomfortHistory,
+    workouts, logs, allTimeLogs, loading, loadingPR, unlockedBadges, discomfortHistory, weightLogs,
     exercises, volumePoints, handleRefreshRecords,
   } = useDashboardData(active, user, toast);
 
@@ -56,11 +56,22 @@ export default function DashPage({ active }) {
 
   const loadPoints = useMemo(() => {
     if (!selectedExercise) return [];
-    return logs
+    // Se o exercício não tem registro nos últimos 60 dias (só apareceu no
+    // seletor por causa de allTimeLogs), cai pro histórico completo — senão
+    // o gráfico ficaria vazio pra um exercício que a lista de recordes ao
+    // lado mostra ter PR.
+    const hasRecentData = logs.some(l => l.exercise_name === selectedExercise);
+    const source = hasRecentData ? logs : allTimeLogs;
+    return source
       .filter(l => l.exercise_name === selectedExercise && !isNaN(parseFloat(l.carga)))
       .sort((a, b) => a.workout_date.localeCompare(b.workout_date))
       .map(l => ({ value: parseFloat(l.carga), label: fmtDate(l.workout_date) }));
-  }, [logs, selectedExercise]);
+  }, [logs, allTimeLogs, selectedExercise]);
+
+  const weightPoints = useMemo(
+    () => weightLogs.map(w => ({ label: fmtDate(w.log_date), value: w.peso })),
+    [weightLogs]
+  );
 
   return (
     <section id="page-dash" className="page active">
@@ -191,6 +202,19 @@ export default function DashPage({ active }) {
 
       <div className="section-group">
         <div className="section-group__label">Fotos de progresso</div>
+        <div className="dash-card">
+          <div className="dash-card__title">Evolução do peso</div>
+          <div className="line-chart-wrap">
+            {loadingPR ? <Skeleton height={130} /> : (
+              <LineChart
+                points={weightPoints}
+                valueSuffix="kg"
+                singleMsg={v => `1 registro: ${v}kg — registre seu peso novamente em outro dia para ver a evolução`}
+                emptyMsg="Nenhum peso registrado ainda. Registre em Perfil para começar."
+              />
+            )}
+          </div>
+        </div>
         <div className="dash-card">
           <ProgressPhotos />
         </div>

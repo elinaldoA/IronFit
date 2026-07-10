@@ -2,10 +2,28 @@ import { db } from './supabase';
 import { treinoData, TODAY_DATE } from '../data/treinoData';
 import { parseLocalDate, toDateStr } from './utils';
 import { evaluateCycleEvolution } from './planEvolution';
+import { generatePlan, NIVEIS } from '../data/workoutTemplates';
 
 // Ciclo positivo antecipa o próximo (mais 1 semana livre pra "subir de nível"
 // mais rápido); negativo estende (mais tempo pra consolidar antes de avançar).
 const DURATION_ADJUST_WEEKS = { positivo: -1, neutro: 0, negativo: 2 };
+
+// Duração usada quando o plano que venceu não tinha duration_weeks (não deve
+// acontecer no fluxo normal, já que setActivePlan sempre grava os dois juntos).
+const DEFAULT_CYCLE_WEEKS = 4;
+
+// Desloca o nível de experiência conforme o veredito do ciclo — reaproveita o
+// ajuste de volume/técnica por nível que generatePlan já faz
+// (applyLevelAdjustment em workoutTemplates.js), dando um efeito real de
+// progressão/recuperação ao ciclo gerado automaticamente. Não é persistido no
+// perfil do usuário, só usado pra gerar este plano.
+export function adjustNivelForVerdict(nivel, verdict) {
+  const idx = NIVEIS.indexOf(nivel);
+  if (idx === -1) return nivel;
+  if (verdict === 'positivo') return NIVEIS[Math.min(NIVEIS.length - 1, idx + 1)];
+  if (verdict === 'negativo') return NIVEIS[Math.max(0, idx - 1)];
+  return nivel;
+}
 
 function addWeeks(dateStr, weeks) {
   const d = parseLocalDate(dateStr);
@@ -68,7 +86,7 @@ export async function seedGeneratedPlan(userId, generatedDays) {
 // existe mais de um plano ativo ao mesmo tempo (diferente de seedDefaultPlan,
 // que pode inserir direto como ativo porque só roda quando não há nenhum
 // plano ainda).
-export async function createGeneratedPlan(userId, name, generatedDays) {
+export async function createGeneratedPlan(userId, name, generatedDays, durationWeeks = null) {
   const { data: plan, error } = await db
     .from('workout_plans')
     .insert({ user_id: userId, name, is_active: false })
@@ -77,7 +95,7 @@ export async function createGeneratedPlan(userId, name, generatedDays) {
   if (error) throw error;
 
   await insertDaysAndExercises(plan.id, generatedDays);
-  await setActivePlan(userId, plan.id);
+  await setActivePlan(userId, plan.id, durationWeeks);
   return plan;
 }
 
@@ -127,16 +145,42 @@ export async function fetchPlanDays(planId) {
 
 const PLAN_CYCLE_FIELDS = 'id, name, created_at, start_date, end_date, duration_weeks, next_plan_id, regression_plan_id';
 
+const VERDICT_LABEL = { positivo: 'Progressão', negativo: 'Recuperação', neutro: 'Continuidade' };
+
+// Sem sucessor configurado pro veredito: gera um novo ciclo automaticamente a
+// partir do perfil atual (mesma generatePlan do onboarding/regeneração manual
+// em Perfil), ajustando o nível de experiência pra cima/baixo conforme o
+// veredito (adjustNivelForVerdict). Assim o "personal trainer virtual" nunca
+// fica travado esperando escolha manual — o editor de planos continua
+// disponível pra quem preferir configurar sucessores fixos. Retorna
+// switched: false só quando o perfil ainda não tem peso/altura (onboarding
+// incompleto), caso em que não há como gerar um plano.
+export async function autoGenerateNextCycle(userId, plan, evaluation, meta = {}) {
+  if (!meta?.peso || !meta?.altura) return { switched: false, evaluation };
+
+  const nivelAjustado = adjustNivelForVerdict(meta.nivel, evaluation.verdict);
+  const generatedDays = generatePlan({ peso: meta.peso, altura: meta.altura, meta: meta.meta, nivel: nivelAjustado });
+
+  const label = VERDICT_LABEL[evaluation.verdict] || 'Continuidade';
+  const name = `${label} automática (${TODAY_DATE})`;
+
+  const baseWeeks = plan.duration_weeks ?? DEFAULT_CYCLE_WEEKS;
+  const durationWeeks = Math.max(1, baseWeeks + DURATION_ADJUST_WEEKS[evaluation.verdict]);
+
+  const newPlan = await createGeneratedPlan(userId, name, generatedDays, durationWeeks);
+  return { switched: true, evaluation, successorName: newPlan.name };
+}
+
 // Quando o ciclo do plano ativo venceu: avalia a evolução (exercícios do
 // plano, peso vs objetivo, aderência, desconforto/lesão) e ativa o sucessor
 // correspondente (progressão ou recuperação), ajustando a duração do próximo
 // ciclo pra cima/baixo conforme o veredito. Sem sucessor configurado pro
-// veredito obtido, não faz nada — o plano fica vencido até o usuário escolher
-// manualmente no editor de planos.
+// veredito obtido (ou se o sucessor configurado foi excluído), gera um novo
+// ciclo automaticamente a partir do perfil atual (autoGenerateNextCycle).
 async function applyPlanExpiry(userId, plan, days, meta) {
   const evaluation = await evaluateCycleEvolution(userId, plan, days, meta);
   const successorId = evaluation.verdict === 'negativo' ? plan.regression_plan_id : plan.next_plan_id;
-  if (!successorId) return { switched: false, evaluation };
+  if (!successorId) return autoGenerateNextCycle(userId, plan, evaluation, meta);
 
   const { data: successor, error } = await db
     .from('workout_plans')
@@ -144,7 +188,7 @@ async function applyPlanExpiry(userId, plan, days, meta) {
     .eq('id', successorId)
     .maybeSingle();
   if (error) throw error;
-  if (!successor) return { switched: false, evaluation };
+  if (!successor) return autoGenerateNextCycle(userId, plan, evaluation, meta);
 
   const baseWeeks = successor.duration_weeks ?? plan.duration_weeks ?? null;
   const adjustedWeeks = baseWeeks ? Math.max(1, baseWeeks + DURATION_ADJUST_WEEKS[evaluation.verdict]) : null;

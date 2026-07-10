@@ -3,6 +3,8 @@ import { fetchWeightLogs } from './weightLog';
 import { fetchRecipes } from './recipes';
 import { fetchFoodLogsRange } from './foodLog';
 import { fetchWaterLogsRange } from './dietaLog';
+import { fetchAllDiscomfort } from './discomfort';
+import { fetchUnlockedAchievements } from './achievements';
 
 const EPOCH = '1970-01-01';
 
@@ -69,11 +71,13 @@ export async function gatherUserData(userId) {
     .order('log_date', { ascending: true });
   if (dietErr) throw dietErr;
 
-  const [weightLogs, recipes, foodLogs, waterLogs] = await Promise.all([
+  const [weightLogs, recipes, foodLogs, waterLogs, discomfortReports, achievements] = await Promise.all([
     fetchWeightLogs(userId),
     fetchRecipes(userId),
     fetchFoodLogsRange(userId, EPOCH),
     fetchWaterLogsRange(userId, EPOCH),
+    fetchAllDiscomfort(userId, 10000), // sem cap de 100 aqui — é backup completo, não o histórico exibido na tela
+    fetchUnlockedAchievements(userId),
   ]);
 
   return {
@@ -81,6 +85,7 @@ export async function gatherUserData(userId) {
     workouts, exerciseSets,
     workoutPlans: plans, planDays, planExercises,
     weightLogs, progressPhotos: photos || [], dietLogs: dietLogs || [], foodLogs, waterLogs, recipes,
+    discomfortReports, achievements,
   };
 }
 
@@ -159,6 +164,7 @@ export async function printReport(userId) {
         <div class="stat"><b>${totalTreinos}</b>Treinos concluídos</div>
         <div class="stat"><b>${data.progressPhotos.length}</b>Fotos de progresso</div>
         <div class="stat"><b>${data.recipes.length}</b>Receitas salvas</div>
+        <div class="stat"><b>${data.achievements.length}</b>Conquistas desbloqueadas</div>
       </div>
       <h2>Histórico de peso</h2>
       <table>

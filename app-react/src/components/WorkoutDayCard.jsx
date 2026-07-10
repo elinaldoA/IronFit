@@ -207,7 +207,9 @@ function ExerciseBlock({ ex, day, bump, onRestStart, open, version, onToggleAll,
             </p>
           ) : suggestion && (
             <p className="ex-block__suggestion">
-              💡 Sugestão: {suggestion.suggestedCarga}kg
+              {suggestion.suggestedReps
+                ? <>💡 Sugestão: repita {suggestion.suggestedCarga}kg, mas tente {suggestion.suggestedReps} reps</>
+                : <>💡 Sugestão: {suggestion.suggestedCarga}kg</>}
               {' '}<span className="ex-block__suggestion-hint">(última vez: {suggestion.lastCarga}kg × {suggestion.lastReps} reps)</span>
             </p>
           )}

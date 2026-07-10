@@ -22,6 +22,7 @@ export function useDashboardData(active, user, toast) {
   const [loadingPR, setLoadingPR] = useState(false);
   const [unlockedBadges, setUnlockedBadges] = useState(new Set());
   const [discomfortHistory, setDiscomfortHistory] = useState([]);
+  const [weightLogs, setWeightLogs] = useState([]);
   // PRs/streak/conquistas exigem o histórico inteiro de treinos — buscar isso
   // de novo toda vez que a aba fica ativa fica cada vez mais pesado conforme
   // o histórico cresce, então só carrega uma vez por sessão (com refresh manual).
@@ -72,6 +73,7 @@ export function useDashboardData(active, user, toast) {
         totalWeightLogs: weights.length,
       });
       setUnlockedBadges(unlockedIds);
+      setWeightLogs(weights);
       newlyEarned.forEach(b => {
         toast(`🏅 Conquista desbloqueada: ${b.title}`);
         if (isNotifyEnabled(user.user_metadata, 'notifyRecords')) {
@@ -145,9 +147,15 @@ export function useDashboardData(active, user, toast) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, user]);
 
+  // Une logs (60 dias) com allTimeLogs pro seletor não esconder exercícios
+  // cujo último registro é mais antigo que a janela recente — PRList (que usa
+  // allTimeLogs) já mostrava esses exercícios, o seletor de carga não devia
+  // ficar mais restrito que a lista de recordes na mesma seção.
   const exercises = useMemo(
-    () => [...new Set(logs.filter(l => !isNaN(parseFloat(l.carga))).map(l => l.exercise_name))].sort(),
-    [logs]
+    () => [...new Set(
+      [...logs, ...allTimeLogs].filter(l => !isNaN(parseFloat(l.carga))).map(l => l.exercise_name)
+    )].sort(),
+    [logs, allTimeLogs]
   );
 
   const volumePoints = useMemo(() => {
@@ -161,7 +169,7 @@ export function useDashboardData(active, user, toast) {
   }, [logs]);
 
   return {
-    workouts, logs, allTimeLogs, loading, loadingPR, unlockedBadges, discomfortHistory,
+    workouts, logs, allTimeLogs, loading, loadingPR, unlockedBadges, discomfortHistory, weightLogs,
     exercises, volumePoints, handleRefreshRecords,
   };
 }

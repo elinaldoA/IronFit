@@ -45,6 +45,9 @@ export function AddFoodForm({ onAdd, onCancel, recipes, initial, submitLabel }) 
     const r = recipes.find(r => r.id === recipeId);
     if (!r) return;
     setFoodName(r.name);
+    // saved_recipes não guarda porção — "1 porção" é só um ponto de partida
+    // editável, melhor que forçar o usuário a digitar do zero toda vez.
+    setQuantidade('1 porção');
     setKcal(String(r.kcal));
     setProteina(String(r.proteina));
     setCarboidrato(String(r.carboidrato));

@@ -115,9 +115,10 @@ export async function fetchExerciseSetsWithDates(userId, exerciseName) {
 }
 
 // Sugere a carga da próxima sessão: se todas as séries da última sessão bateram o
-// teto da faixa de reps planejada, sugere +2,5kg; senão, sugere repetir a mesma carga.
-// Retorna null se o exercício não tem histórico ou a faixa de reps não é numérica
-// (ex.: "até a falha", isometria em segundos, cardio).
+// teto da faixa de reps planejada, sugere +2,5kg; senão, sugere repetir a mesma carga
+// e mirar em +1 rep (dupla progressão: sobe rep por rep até bater o teto, só então
+// sobe carga). Retorna null se o exercício não tem histórico ou a faixa de reps não
+// é numérica (ex.: "até a falha", isometria em segundos, cardio).
 export async function fetchProgressionSuggestion(userId, exerciseName, repsStr) {
   const ceiling = parseRepCeiling(repsStr);
   if (ceiling === null) return null;
@@ -132,11 +133,13 @@ export async function fetchProgressionSuggestion(userId, exerciseName, repsStr) 
 
   const setsAtLastCarga = lastSets.filter(s => parseFloat(s.carga) === lastCarga);
   const hitCeiling = setsAtLastCarga.every(s => parseInt(s.reps, 10) >= ceiling);
+  const lastReps = Math.max(...setsAtLastCarga.map(s => parseInt(s.reps, 10)));
 
   return {
     lastCarga,
-    lastReps: Math.max(...setsAtLastCarga.map(s => parseInt(s.reps, 10))),
+    lastReps,
     suggestedCarga: hitCeiling ? lastCarga + 2.5 : lastCarga,
+    suggestedReps: hitCeiling ? null : Math.min(ceiling, lastReps + 1),
     hitCeiling,
   };
 }

@@ -11,19 +11,11 @@ export async function fetchWeightLogs(userId) {
 }
 
 export async function upsertWeightLog(userId, logDate, peso) {
-  const { data: existing, error: findErr } = await db
+  const { error } = await db
     .from('weight_logs')
-    .select('id')
-    .eq('user_id', userId)
-    .eq('log_date', logDate)
-    .maybeSingle();
-  if (findErr) throw findErr;
-
-  if (existing) {
-    const { error } = await db.from('weight_logs').update({ weight: peso }).eq('id', existing.id);
-    if (error) throw error;
-  } else {
-    const { error } = await db.from('weight_logs').insert({ user_id: userId, log_date: logDate, weight: peso });
-    if (error) throw error;
-  }
+    .upsert(
+      { user_id: userId, log_date: logDate, weight: peso },
+      { onConflict: 'user_id,log_date' }
+    );
+  if (error) throw error;
 }

@@ -21,6 +21,10 @@ webpush.setVapidDetails('mailto:contato@ironfit.app', VAPID_PUBLIC_KEY, VAPID_PR
 
 const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
+// Mantenha em sincronia com WATER_REMINDER_TIMES em
+// app-react/src/components/ReminderScheduler.jsx — duplicado de propósito
+// porque essa Edge Function (Deno) e o bundle do app (Vite) não compartilham
+// módulos, mas os dois precisam disparar no mesmo horário.
 const WATER_REMINDER_TIMES = ['09:00', '11:00', '13:00', '15:00', '17:00', '19:00', '21:00'];
 const DEFAULT_MACRO_AGUA = 3.5;
 const DEFAULT_WEEKLY_GOAL = 5;

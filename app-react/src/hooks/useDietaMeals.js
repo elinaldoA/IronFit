@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { getDietaData, getMacroGoals, TODAY_DATE } from '../data/treinoData';
+import { generateMealPlan } from '../data/mealTemplates';
 import { parseDecimal, mealMacroContribution } from '../lib/utils';
 import { fetchMealLogs, upsertMealLog } from '../lib/dietaLog';
 import { fetchFoodLogs, addFoodItem, updateFoodItem, deleteFoodItem, setMealEstimate, clearMealEstimate } from '../lib/foodLog';
@@ -220,16 +221,27 @@ export function useDietaMeals(user, toast, markPending, updateProfile) {
 
     const { error } = await updateProfile({ customMeals: cleaned });
     if (error) return toast('⚠️ Não foi possível salvar — tente novamente');
+    // Refeição renomeada ou removida: limpa a chave "concluída" de hoje do
+    // nome antigo — senão ela fica órfã no localStorage e, se algum dia o
+    // mesmo nome for reusado, o check "feito" reaparece sem o usuário marcar.
+    const cleanedNames = new Set(cleaned.map(m => m.nome));
+    meals.forEach(m => {
+      if (!cleanedNames.has(m.nome)) localStorage.removeItem(mealKey(m));
+    });
     setMeals(cleaned);
     setEditing(false);
     toast('🍽️ Refeições atualizadas!');
   }
 
   async function handleRestoreDefault() {
-    if (!window.confirm('Restaurar as refeições padrão? Suas edições serão perdidas.')) return;
-    const { error } = await updateProfile({ customMeals: null });
+    if (!window.confirm('Restaurar as refeições padrão do seu objetivo? Suas edições serão perdidas.')) return;
+    // Gera o cardápio padrão do objetivo atual (mesma função do onboarding e
+    // do "Gerar novo cardápio" em Perfil) em vez de só zerar customMeals —
+    // customMeals: null caía sempre no template genérico de ganho de massa
+    // (getDietaData), ignorando o objetivo real do usuário.
+    const defaults = generateMealPlan({ meta: user?.user_metadata?.meta });
+    const { error } = await updateProfile({ customMeals: defaults });
     if (error) return toast('⚠️ Não foi possível restaurar — tente novamente');
-    const defaults = getDietaData(null);
     setMeals(defaults);
     setDraft(defaults);
     setEditing(false);
