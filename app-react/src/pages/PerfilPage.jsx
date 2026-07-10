@@ -25,6 +25,7 @@ const NOTIFY_PREFS = [
   { key: 'notifyWeeklySummary', label: 'Resumo semanal (segunda de manhã)' },
   { key: 'notifyWeightUpdate', label: 'Atualizar peso (segunda de manhã)' },
   { key: 'notifyRecords', label: 'Recordes e conquistas' },
+  { key: 'notifyDiscomfortFollowup', label: 'Follow-up de desconforto (dias após relato forte/lesão)' },
 ];
 
 function imcInfo(peso, altura) {

@@ -1569,6 +1569,62 @@ body.modal-open { overflow: hidden; }
   flex-wrap: wrap;
 }
 
+/* Discomfort history (agregado, todos os exercícios) */
+.discomfort-history { display: flex; flex-direction: column; }
+
+.discomfort-history__row {
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border);
+}
+.discomfort-history__row:last-child { border-bottom: none; }
+
+.discomfort-history__top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.discomfort-history__name {
+  font-size: 0.79rem;
+  font-weight: 600;
+  color: var(--text);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.discomfort-history__badge {
+  margin-left: 4px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-dim);
+}
+
+.discomfort-history__severity {
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--warning);
+}
+.discomfort-history__severity--forte,
+.discomfort-history__severity--lesao {
+  color: var(--error);
+}
+
+.discomfort-history__date {
+  flex-shrink: 0;
+  font-size: 0.65rem;
+  color: var(--text-dim);
+}
+
+.discomfort-history__note {
+  margin: 4px 0 0;
+  font-size: 0.72rem;
+  color: var(--text-dim);
+}
+
 /* PR list */
 .pr-list { display: flex; flex-direction: column; }
 

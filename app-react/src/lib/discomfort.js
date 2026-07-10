@@ -34,3 +34,36 @@ export async function fetchRecentDiscomfort(userId, exerciseName) {
   if (error) throw error;
   return data;
 }
+
+// Todos os relatos do usuário, mais recentes primeiro — usado no histórico
+// agregado da aba Evolução (diferente de fetchRecentDiscomfort, não filtra
+// por exercício). Sem paginação: 100 é generoso pro volume real desse dado.
+export async function fetchAllDiscomfort(userId, limit = 100) {
+  const { data, error } = await db
+    .from('exercise_discomfort')
+    .select('id, exercise_name, severity, note, log_date')
+    .eq('user_id', userId)
+    .order('log_date', { ascending: false })
+    .order('id', { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return data || [];
+}
+
+// Agrupa relatos por exercício (contagem + severidade/data mais recente),
+// ordenado por contagem desc, pra evidenciar reincidência no histórico.
+export function summarizeDiscomfortByExercise(reports) {
+  const byExercise = new Map();
+  for (const r of reports) {
+    const entry = byExercise.get(r.exercise_name) || {
+      exerciseName: r.exercise_name, count: 0, lastSeverity: null, lastDate: null,
+    };
+    entry.count++;
+    if (!entry.lastDate || r.log_date > entry.lastDate) {
+      entry.lastDate = r.log_date;
+      entry.lastSeverity = r.severity;
+    }
+    byExercise.set(r.exercise_name, entry);
+  }
+  return [...byExercise.values()].sort((a, b) => b.count - a.count);
+}

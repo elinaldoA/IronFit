@@ -10,7 +10,7 @@ import { countFoodLogs } from '../lib/foodLog';
 import { countPhotos } from '../lib/progressPhotos';
 import { fetchRecipes } from '../lib/recipes';
 import { fetchWeightLogs } from '../lib/weightLog';
-import { fetchRecentDiscomfort, logDiscomfort } from '../lib/discomfort';
+import { fetchRecentDiscomfort, logDiscomfort, fetchAllDiscomfort, summarizeDiscomfortByExercise } from '../lib/discomfort';
 import { BADGES, syncAchievements } from '../lib/achievements';
 import { isNotifyEnabled } from '../lib/notifications';
 import { sendPushToSelf } from '../lib/pushSubscriptions';
@@ -250,6 +250,42 @@ function DiscomfortPanel({ userId, exerciseName, toast }) {
   );
 }
 
+// Histórico agregado de todos os relatos de desconforto — diferente do
+// DiscomfortPanel (que só mostra o relato mais recente do exercício
+// selecionado no picker), fica sempre visível pra evidenciar reincidência.
+function DiscomfortHistory({ reports }) {
+  if (!reports.length) {
+    return <p className="dash-empty">Nenhum desconforto relatado ainda.</p>;
+  }
+
+  const countByExercise = new Map(
+    summarizeDiscomfortByExercise(reports).map(s => [s.exerciseName, s.count])
+  );
+
+  return (
+    <div className="discomfort-history">
+      {reports.map(r => {
+        const count = countByExercise.get(r.exercise_name) || 1;
+        return (
+          <div className="discomfort-history__row" key={r.id}>
+            <div className="discomfort-history__top">
+              <span className="discomfort-history__name">
+                {r.exercise_name}
+                {count > 1 && <span className="discomfort-history__badge">×{count}</span>}
+              </span>
+              <span className={`discomfort-history__severity discomfort-history__severity--${r.severity}`}>
+                {DISCOMFORT_LABELS[r.severity]}
+              </span>
+              <span className="discomfort-history__date">{fmtDate(r.log_date)}</span>
+            </div>
+            {r.note && <p className="discomfort-history__note">{r.note}</p>}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function DashPage({ active }) {
   const { user } = useAuth();
   const { activePlanDays } = useWorkout();
@@ -264,6 +300,7 @@ export default function DashPage({ active }) {
   const [streak, setStreak] = useState(0);
   const [totalTreinos, setTotalTreinos] = useState(0);
   const [totalPhotosCount, setTotalPhotosCount] = useState(0);
+  const [discomfortHistory, setDiscomfortHistory] = useState([]);
   // PRs/streak/conquistas exigem o histórico inteiro de treinos — buscar isso
   // de novo toda vez que a aba fica ativa fica cada vez mais pesado conforme
   // o histórico cresce, então só carrega uma vez por sessão (com refresh manual).
@@ -407,6 +444,8 @@ export default function DashPage({ active }) {
         } else {
           setLogs([]);
         }
+
+        setDiscomfortHistory(await fetchAllDiscomfort(user.id));
       } catch (err) {
         console.error('loadDashboard:', err);
         toast('⚠️ Erro ao carregar evolução');
@@ -534,6 +573,11 @@ export default function DashPage({ active }) {
           {!loading && selectedExercise && <WeekCompare logs={logs} exercise={selectedExercise} />}
           {!loading && selectedExercise && <LoadHistory points={loadPoints} />}
           {!loading && selectedExercise && <DiscomfortPanel userId={user.id} exerciseName={selectedExercise} toast={toast} />}
+        </div>
+
+        <div className="dash-card">
+          <div className="dash-card__title">Histórico de desconforto</div>
+          {loading ? <Skeleton height={100} /> : <DiscomfortHistory reports={discomfortHistory} />}
         </div>
 
         <div className="dash-card">

@@ -4,10 +4,11 @@
 // (app-react/src/components/ReminderScheduler.jsx), mas consultando o estado
 // real salvo no banco (diet_logs / water_logs) em vez de localStorage.
 //
-// Também cobre 3 notificações "inteligentes" que dependem do histórico de treinos
-// (streak em risco, inatividade, resumo semanal) — essas são só server-side, de
-// propósito: rodar a mesma checagem no ReminderScheduler.jsx do navegador geraria
-// notificação duplicada no minuto exato em que os dois baterem o mesmo horário.
+// Também cobre notificações "inteligentes" que dependem de histórico salvo no
+// banco (streak em risco, inatividade, resumo semanal, follow-up de desconforto)
+// — essas são só server-side, de propósito: rodar a mesma checagem no
+// ReminderScheduler.jsx do navegador geraria notificação duplicada no minuto
+// exato em que os dois baterem o mesmo horário.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import webpush from 'npm:web-push@3.6.7';
 
@@ -30,6 +31,9 @@ const INACTIVITY_TIME = '09:00';
 const INACTIVITY_MIN_GAP = 2;
 const INACTIVITY_MAX_GAP = 14; // acima disso, para de insistir com quem sumiu há muito tempo
 const WEEKLY_SUMMARY_TIME = '08:00'; // só às segundas-feiras
+const DISCOMFORT_FOLLOWUP_TIME = '09:00'; // mesmo slot de INACTIVITY_TIME, evita mais uma query a cada minuto
+const DISCOMFORT_FOLLOWUP_WINDOW_START = 4; // dias atrás
+const DISCOMFORT_FOLLOWUP_WINDOW_END = 3; // dias atrás — janela de 2 dias cobre falha de execução num dia exato sem precisar de estado
 const HISTORY_LOOKBACK_DAYS = 39; // cobre o badge de streak de 30 dias + a semana do resumo
 
 // Mesma tabela padrão de app-react/src/data/treinoData.js (dietaData) — se o
@@ -132,10 +136,12 @@ Deno.serve(async () => {
   const isStreakRiskSlot = time === STREAK_RISK_TIME;
   const isInactivitySlot = time === INACTIVITY_TIME;
   const isWeeklySummarySlot = dow === 1 && time === WEEKLY_SUMMARY_TIME;
+  const isDiscomfortFollowupSlot = time === DISCOMFORT_FOLLOWUP_TIME;
 
   const historyByUser = new Map();
   const weeklyCountByUser = new Map();
   const weeklyVolumeByUser = new Map();
+  const discomfortByUser = new Map();
 
   if (isStreakRiskSlot || isInactivitySlot || isWeeklySummarySlot) {
     const historyStart = addDays(date, -HISTORY_LOOKBACK_DAYS);
@@ -177,6 +183,24 @@ Deno.serve(async () => {
           if (uid && Number.isFinite(carga)) weeklyVolumeByUser.set(uid, (weeklyVolumeByUser.get(uid) || 0) + carga);
         });
       }
+    }
+  }
+
+  if (isDiscomfortFollowupSlot) {
+    const windowStart = addDays(date, -DISCOMFORT_FOLLOWUP_WINDOW_START);
+    const windowEnd = addDays(date, -DISCOMFORT_FOLLOWUP_WINDOW_END);
+    const { data: discomfort, error: discomfortErr } = await supabase
+      .from('exercise_discomfort')
+      .select('id, user_id, exercise_name, log_date, severity')
+      .in('user_id', userIds)
+      .in('severity', ['forte', 'lesao'])
+      .gte('log_date', windowStart)
+      .lte('log_date', windowEnd);
+    if (discomfortErr) return new Response(JSON.stringify({ error: discomfortErr.message }), { status: 500 });
+
+    for (const d of discomfort || []) {
+      if (!discomfortByUser.has(d.user_id)) discomfortByUser.set(d.user_id, []);
+      discomfortByUser.get(d.user_id).push(d);
     }
   }
 
@@ -265,6 +289,16 @@ Deno.serve(async () => {
           title: '⚖️ Hora de atualizar seu peso',
           body: 'Registre seu peso desta semana no Perfil pra acompanhar sua evolução.',
           tag: `weight-update-${date}`,
+        });
+      }
+    }
+
+    if (isDiscomfortFollowupSlot && isNotifyEnabled(meta, 'notifyDiscomfortFollowup')) {
+      for (const d of discomfortByUser.get(userId) || []) {
+        payloads.push({
+          title: '🩹 Ainda sente essa dor?',
+          body: `Você relatou desconforto ${d.severity === 'lesao' ? '(lesão)' : 'forte'} em ${d.exercise_name} há alguns dias. Ainda sente?`,
+          tag: `discomfort-followup-${d.id}`,
         });
       }
     }
