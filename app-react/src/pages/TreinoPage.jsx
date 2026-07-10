@@ -3,11 +3,10 @@ import { TODAY_NAME } from '../data/treinoData';
 import { useAuth } from '../context/AuthContext';
 import { useWorkout } from '../context/WorkoutContext';
 import { useToast } from '../context/ToastContext';
-import { parseRestSeconds, getDateForWeekday, formatDuration, fmtDate } from '../lib/utils';
+import { parseRestSeconds, getDateForWeekday, formatDuration } from '../lib/utils';
 import { db } from '../lib/supabase';
 import { playWorkoutFinishedSound } from '../lib/sound';
 import { checkForNewPR, fetchProgressionSuggestion, fetchPlateauStatus } from '../lib/records';
-import { fetchRecentDiscomfort, logDiscomfort } from '../lib/discomfort';
 import { isNotifyEnabled } from '../lib/notifications';
 import { sendPushToSelf } from '../lib/pushSubscriptions';
 import RestTimer from '../components/RestTimer';
@@ -195,18 +194,10 @@ function SetRow({ ex, n, day, bump, onRestStart }) {
   );
 }
 
-const DISCOMFORT_LABELS = { leve: 'leve', moderada: 'moderada', forte: 'forte', lesao: 'lesão' };
-
 function ExerciseBlock({ ex, day, bump, onRestStart, open, version, onToggleAll }) {
   const { user } = useAuth();
-  const toast = useToast();
   const [suggestion, setSuggestion] = useState(null);
   const [plateau, setPlateau] = useState(null);
-  const [discomfort, setDiscomfort] = useState(null);
-  const [reportOpen, setReportOpen] = useState(false);
-  const [severity, setSeverity] = useState('leve');
-  const [note, setNote] = useState('');
-  const [savingDiscomfort, setSavingDiscomfort] = useState(false);
   const setCount = parseInt(ex.series, 10);
 
   useEffect(() => {
@@ -218,28 +209,8 @@ function ExerciseBlock({ ex, day, bump, onRestStart, open, version, onToggleAll 
     fetchPlateauStatus(user.id, ex.nome, ex.reps)
       .then(p => { if (!cancelled) setPlateau(p); })
       .catch(err => console.error('fetchPlateauStatus:', err));
-    fetchRecentDiscomfort(user.id, ex.nome)
-      .then(d => { if (!cancelled) setDiscomfort(d); })
-      .catch(err => console.error('fetchRecentDiscomfort:', err));
     return () => { cancelled = true; };
   }, [user, open, setCount, ex.nome, ex.reps]);
-
-  async function handleSaveDiscomfort() {
-    setSavingDiscomfort(true);
-    try {
-      const logDate = getDateForWeekday(day.dia);
-      await logDiscomfort(user.id, ex.nome, logDate, severity, note);
-      setDiscomfort({ severity, note: note.trim() || null, log_date: logDate });
-      setReportOpen(false);
-      setNote('');
-      toast('✅ Desconforto registrado');
-    } catch (err) {
-      console.error('logDiscomfort:', err);
-      toast('❌ Erro ao registrar desconforto');
-    } finally {
-      setSavingDiscomfort(false);
-    }
-  }
 
   if (!setCount) {
     return (
@@ -269,32 +240,6 @@ function ExerciseBlock({ ex, day, bump, onRestStart, open, version, onToggleAll 
               💡 Sugestão: {suggestion.suggestedCarga}kg
               {' '}<span className="ex-block__suggestion-hint">(última vez: {suggestion.lastCarga}kg × {suggestion.lastReps} reps)</span>
             </p>
-          )}
-          {discomfort && (
-            <p className="ex-block__suggestion ex-block__suggestion--discomfort">
-              🩹 Desconforto {DISCOMFORT_LABELS[discomfort.severity]} relatado em {fmtDate(discomfort.log_date)}
-              {' '}<span className="ex-block__suggestion-hint">— considere reduzir a carga ou trocar o exercício</span>
-            </p>
-          )}
-          <button type="button" className="ex-block__discomfort-toggle" onClick={() => setReportOpen(o => !o)}>
-            {reportOpen ? 'Cancelar' : '⚠️ Reportar desconforto'}
-          </button>
-          {reportOpen && (
-            <div className="ex-block__discomfort-form">
-              <select className="input input--sm" value={severity} onChange={e => setSeverity(e.target.value)}>
-                <option value="leve">Leve</option>
-                <option value="moderada">Moderada</option>
-                <option value="forte">Forte</option>
-                <option value="lesao">Lesão</option>
-              </select>
-              <input
-                type="text" className="input input--sm" placeholder="Nota (opcional)"
-                value={note} onChange={e => setNote(e.target.value)}
-              />
-              <button type="button" className="btn btn--primary btn--sm" disabled={savingDiscomfort} onClick={handleSaveDiscomfort}>
-                Salvar
-              </button>
-            </div>
           )}
         </div>
         <button

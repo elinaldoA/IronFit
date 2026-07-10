@@ -10,6 +10,7 @@ import { countFoodLogs } from '../lib/foodLog';
 import { countPhotos } from '../lib/progressPhotos';
 import { fetchRecipes } from '../lib/recipes';
 import { fetchWeightLogs } from '../lib/weightLog';
+import { fetchRecentDiscomfort, logDiscomfort } from '../lib/discomfort';
 import { BADGES, syncAchievements } from '../lib/achievements';
 import { isNotifyEnabled } from '../lib/notifications';
 import { sendPushToSelf } from '../lib/pushSubscriptions';
@@ -178,6 +179,73 @@ function LoadHistory({ points }) {
           <span className="load-history__val">{p.value}kg</span>
         </div>
       ))}
+    </div>
+  );
+}
+
+const DISCOMFORT_LABELS = { leve: 'Leve', moderada: 'Moderada', forte: 'Forte', lesao: 'Lesão' };
+
+function DiscomfortPanel({ userId, exerciseName, toast }) {
+  const [discomfort, setDiscomfort] = useState(null);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [severity, setSeverity] = useState('leve');
+  const [note, setNote] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!userId || !exerciseName) return;
+    let cancelled = false;
+    setReportOpen(false);
+    fetchRecentDiscomfort(userId, exerciseName)
+      .then(d => { if (!cancelled) setDiscomfort(d); })
+      .catch(err => console.error('fetchRecentDiscomfort:', err));
+    return () => { cancelled = true; };
+  }, [userId, exerciseName]);
+
+  async function handleSave() {
+    setSaving(true);
+    try {
+      await logDiscomfort(userId, exerciseName, TODAY_DATE, severity, note);
+      setDiscomfort({ severity, note: note.trim() || null, log_date: TODAY_DATE });
+      setReportOpen(false);
+      setNote('');
+      toast('✅ Desconforto registrado');
+    } catch (err) {
+      console.error('logDiscomfort:', err);
+      toast('❌ Erro ao registrar desconforto');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="discomfort-panel">
+      {discomfort && (
+        <p className="discomfort-panel__alert">
+          🩹 Desconforto {DISCOMFORT_LABELS[discomfort.severity]} relatado em {fmtDate(discomfort.log_date)}
+          {' '}<span className="discomfort-panel__hint">— considere reduzir a carga ou trocar o exercício</span>
+        </p>
+      )}
+      <button type="button" className="discomfort-panel__toggle" onClick={() => setReportOpen(o => !o)}>
+        {reportOpen ? 'Cancelar' : '⚠️ Reportar desconforto neste exercício'}
+      </button>
+      {reportOpen && (
+        <div className="discomfort-panel__form">
+          <select className="input input--sm" value={severity} onChange={e => setSeverity(e.target.value)}>
+            <option value="leve">Leve</option>
+            <option value="moderada">Moderada</option>
+            <option value="forte">Forte</option>
+            <option value="lesao">Lesão</option>
+          </select>
+          <input
+            type="text" className="input input--sm" placeholder="Nota (opcional)"
+            value={note} onChange={e => setNote(e.target.value)}
+          />
+          <button type="button" className="btn btn--primary btn--sm" disabled={saving} onClick={handleSave}>
+            Salvar
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -465,6 +533,7 @@ export default function DashPage({ active }) {
           </div>
           {!loading && selectedExercise && <WeekCompare logs={logs} exercise={selectedExercise} />}
           {!loading && selectedExercise && <LoadHistory points={loadPoints} />}
+          {!loading && selectedExercise && <DiscomfortPanel userId={user.id} exerciseName={selectedExercise} toast={toast} />}
         </div>
 
         <div className="dash-card">
