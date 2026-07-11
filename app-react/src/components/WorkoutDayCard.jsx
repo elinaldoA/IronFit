@@ -256,6 +256,17 @@ export default function DayCard({ day, isToday, bump, onRestStart, onFinish }) {
     if (user) saveWorkoutTimer(day.dia, { startedAt, finishedAt: null, durationSeconds: null });
   }
 
+  function buildSummary(durationMs) {
+    const exercises = gatherExerciseDetails(day);
+    const { done: totalSetsDone, total: totalPlannedSets } = countSets(exercises);
+    const workDays = activePlanDays.filter(d => d.dia !== 'Sábado' && d.dia !== 'Domingo');
+    const weekDone = workDays.filter(d => localStorage.getItem(`treino_${d.dia}`) === 'true').length;
+    return {
+      day, durationMs, totalCarga: calcDayTotalCarga(day),
+      exercises, totalSetsDone, totalPlannedSets, weekDone, weekTotal: workDays.length,
+    };
+  }
+
   function handleFinishWorkout() {
     const result = timer.finish();
     if (!result) return;
@@ -265,15 +276,11 @@ export default function DayCard({ day, isToday, bump, onRestStart, onFinish }) {
     if (!checked) markDone(true);
     if (user) saveWorkoutTimer(day.dia, { startedAt, finishedAt, durationSeconds: Math.round(accumulatedMs / 1000) });
     bump();
+    onFinish(buildSummary(accumulatedMs));
+  }
 
-    const exercises = gatherExerciseDetails(day);
-    const { done: totalSetsDone, total: totalPlannedSets } = countSets(exercises);
-    const workDays = activePlanDays.filter(d => d.dia !== 'Sábado' && d.dia !== 'Domingo');
-    const weekDone = workDays.filter(d => localStorage.getItem(`treino_${d.dia}`) === 'true').length;
-    onFinish({
-      day, durationMs: accumulatedMs, totalCarga: calcDayTotalCarga(day),
-      exercises, totalSetsDone, totalPlannedSets, weekDone, weekTotal: workDays.length,
-    });
+  function handleShowSummary() {
+    onFinish(buildSummary(timer.elapsedMs));
   }
 
   async function toggleAllSets(ex, setCount) {
@@ -388,7 +395,10 @@ export default function DayCard({ day, isToday, bump, onRestStart, onFinish }) {
               </>
             )}
             {timer.status === 'finished' && (
-              <button type="button" className="btn btn--ghost btn--sm" onClick={handleResetTimer}>↺ Refazer treino</button>
+              <>
+                <button type="button" className="btn btn--outline btn--sm" onClick={handleShowSummary}>📋 Ver resumo</button>
+                <button type="button" className="btn btn--ghost btn--sm" onClick={handleResetTimer}>↺ Refazer treino</button>
+              </>
             )}
           </div>
         </div>

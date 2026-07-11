@@ -6,10 +6,12 @@ import bodyAnatomyImg from '../assets/anatomia.jpg';
 // Desenha um card de resumo do treino num canvas offscreen (mesmo padrão de canvas
 // usado em lib/imageUtils.js para compressão de imagem) e retorna um Blob PNG pronto
 // pra compartilhar ou baixar.
+// 9:16 — mesma proporção do Status do WhatsApp e dos Stories do Instagram,
+// pra imagem preencher a tela toda ao compartilhar em vez de sobrar borda.
 const CARD_WIDTH = 1080;
+const CARD_HEIGHT = 1920;
 const PAD_X = 40;
 const CONTENT_W = CARD_WIDTH - PAD_X * 2;
-const WATERMARK_H = 130;
 
 // Tamanho real (em pixels) de cada metade de anatomia.jpg — diferente de
 // BODY_VIEW_SIZE, que é só o espaço de coordenadas usado pelos paths de músculo.
@@ -23,14 +25,6 @@ const BODY_LABEL_H = 36;
 const BODY_SECTION_H = BODY_TITLE_H + BODY_BOX_H + BODY_LABEL_H;
 const MUSCLE_FILL = 'rgba(56,189,248,0.55)';
 const MUSCLE_STROKE = 'rgba(56,189,248,0.9)';
-
-const ROW_PAD = 24;
-const NAME_H = 40;
-const NAME_TO_PILLS_GAP = 14;
-const PILL_H = 46;
-const PILL_GAP_Y = 12;
-const PILL_GAP_X = 14;
-const PILL_PAD_X = 16;
 
 // ctx.roundRect() não existe no Firefox < 112 nem no Safari < 16, então o caminho
 // arredondado é montado manualmente em vez de depender da API nativa.
@@ -79,67 +73,6 @@ function drawProgressBar(ctx, x, y, w, label, doneText, pct) {
   ctx.fillStyle = '#38bdf8';
   roundedRectPath(ctx, x, barY, fillW, barH, barH / 2);
   ctx.fill();
-}
-
-function measureChips(ctx, sets) {
-  ctx.font = '600 26px system-ui, sans-serif';
-  return (sets || []).map(s => {
-    const text = `${s.reps ?? '–'}× ${s.carga ?? '–'}kg`;
-    return { text, width: ctx.measureText(text).width + PILL_PAD_X * 2, done: s.done };
-  });
-}
-
-function layoutChips(chips, maxW) {
-  const lines = [];
-  let line = [];
-  let lineW = 0;
-  chips.forEach(chip => {
-    const w = chip.width + (line.length ? PILL_GAP_X : 0);
-    if (lineW + w > maxW && line.length) {
-      lines.push(line);
-      line = [chip];
-      lineW = chip.width;
-    } else {
-      line.push(chip);
-      lineW += w;
-    }
-  });
-  if (line.length) lines.push(line);
-  return lines;
-}
-
-function exerciseRowHeight(lines) {
-  const pillsH = lines.length ? lines.length * PILL_H + (lines.length - 1) * PILL_GAP_Y : 0;
-  return ROW_PAD + NAME_H + (lines.length ? NAME_TO_PILLS_GAP + pillsH : 0) + ROW_PAD;
-}
-
-function drawExerciseRow(ctx, x, y, w, h, exercise, lines) {
-  ctx.fillStyle = 'rgba(255,255,255,0.08)';
-  roundedRectPath(ctx, x, y, w, h, 20);
-  ctx.fill();
-
-  ctx.textAlign = 'left';
-  ctx.font = '700 30px system-ui, sans-serif';
-  ctx.fillStyle = '#ffffff';
-  ctx.fillText(exercise.nome, x + ROW_PAD, y + ROW_PAD + 28);
-
-  let py = y + ROW_PAD + NAME_H + NAME_TO_PILLS_GAP;
-  lines.forEach(line => {
-    let px = x + ROW_PAD;
-    line.forEach(chip => {
-      ctx.fillStyle = chip.done ? 'rgba(56,189,248,0.35)' : 'rgba(255,255,255,0.12)';
-      roundedRectPath(ctx, px, py, chip.width, PILL_H, PILL_H / 2);
-      ctx.fill();
-
-      ctx.textAlign = 'center';
-      ctx.font = '600 26px system-ui, sans-serif';
-      ctx.fillStyle = '#ffffff';
-      ctx.fillText(chip.text, px + chip.width / 2, py + PILL_H / 2 + 9);
-
-      px += chip.width + PILL_GAP_X;
-    });
-    py += PILL_H + PILL_GAP_Y;
-  });
 }
 
 function loadImage(src) {
@@ -202,18 +135,28 @@ async function drawBodyAvatarSection(ctx, x, y, contentW, day) {
   drawBodyView(ctx, img, startX + BODY_BOX_W + BODY_BOX_GAP, boxY, BODY_BOX_W, BODY_BOX_H, BODY_IMG_HALF_SIZE.width, BACK_MUSCLE_PATHS, activeGroups, 'Costas');
 }
 
-// Watermark discreto (só a logo) pra identificar o app quando o card circula
-// fora do IronFit, sem competir visualmente com as estatísticas.
+// Watermark (logo + nome do app) pra identificar o app quando o card circula
+// fora do IronFit.
 async function drawWatermark(ctx, width, y, height) {
   ctx.fillStyle = 'rgba(0,0,0,0.22)';
   ctx.fillRect(0, y, width, height);
 
+  const label = 'IronFit';
+  ctx.textAlign = 'center';
+  ctx.font = '800 48px system-ui, sans-serif';
+
   try {
     const icon = await loadImage(`${import.meta.env.BASE_URL}icon-192.png`);
-    const size = 84;
-    ctx.drawImage(icon, width / 2 - size / 2, y + (height - size) / 2, size, size);
+    const size = 150;
+    const labelH = 56;
+    const groupH = size + 16 + labelH;
+    const groupY = y + (height - groupH) / 2;
+    ctx.drawImage(icon, width / 2 - size / 2, groupY, size, size);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(label, width / 2, groupY + size + 16 + labelH - 14);
   } catch {
-    // sem ícone disponível, deixa só a faixa
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(label, width / 2, y + height / 2 + 15);
   }
 }
 
@@ -223,24 +166,16 @@ export async function renderWorkoutSummaryCard(summary) {
     exercises = [], totalSetsDone, totalPlannedSets,
   } = summary;
 
-  const measureCtx = document.createElement('canvas').getContext('2d');
-  const exerciseLayouts = exercises.map(ex => {
-    const chips = measureChips(measureCtx, ex.sets);
-    const lines = layoutChips(chips, CONTENT_W - ROW_PAD * 2);
-    return { ex, lines, rowH: exerciseRowHeight(lines) };
-  });
-
   const headerH = 190;
   const statsGap = 24;
   const statBoxH = 160;
   const progressH = 90;
   const sectionGap = 36;
-  const exercisesTitleH = exerciseLayouts.length ? 60 : 0;
-  const rowGap = 20;
-  const exercisesH = exerciseLayouts.reduce((sum, l) => sum + l.rowH + rowGap, 0);
+  const gapBeforeWatermark = 220;
 
-  const height = 60 + headerH + statBoxH * 2 + statsGap + sectionGap + progressH + sectionGap +
-    BODY_SECTION_H + sectionGap + exercisesTitleH + exercisesH + WATERMARK_H + 40;
+  const height = CARD_HEIGHT;
+  const contentEndY = 60 + headerH + statBoxH * 2 + statsGap + sectionGap + progressH + sectionGap + BODY_SECTION_H;
+  const watermarkH = height - contentEndY - gapBeforeWatermark;
 
   const canvas = document.createElement('canvas');
   canvas.width = CARD_WIDTH;
@@ -281,20 +216,7 @@ export async function renderWorkoutSummaryCard(summary) {
   await drawBodyAvatarSection(ctx, PAD_X, y, CONTENT_W, day);
   y += BODY_SECTION_H + sectionGap;
 
-  if (exerciseLayouts.length) {
-    ctx.textAlign = 'left';
-    ctx.font = '700 32px system-ui, sans-serif';
-    ctx.fillStyle = '#ffffff';
-    ctx.fillText('Detalhes das séries', PAD_X, y + 32);
-    y += exercisesTitleH;
-
-    exerciseLayouts.forEach(({ ex, lines, rowH }) => {
-      drawExerciseRow(ctx, PAD_X, y, CONTENT_W, rowH, ex, lines);
-      y += rowH + rowGap;
-    });
-  }
-
-  await drawWatermark(ctx, CARD_WIDTH, height - WATERMARK_H, WATERMARK_H);
+  await drawWatermark(ctx, CARD_WIDTH, height - watermarkH, watermarkH);
 
   return new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
 }
