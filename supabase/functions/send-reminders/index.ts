@@ -17,7 +17,7 @@ const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const VAPID_PUBLIC_KEY = Deno.env.get('VAPID_PUBLIC_KEY')!;
 const VAPID_PRIVATE_KEY = Deno.env.get('VAPID_PRIVATE_KEY')!;
 
-webpush.setVapidDetails('mailto:contato@ironfit.app', VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+webpush.setVapidDetails('mailto:contato@eafit.app', VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
 
 const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
@@ -312,7 +312,7 @@ Deno.serve(async () => {
         try {
           await webpush.sendNotification(
             { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-            JSON.stringify({ title: payload.title, body: payload.body, tag: payload.tag, url: '/IronFit/' })
+            JSON.stringify({ title: payload.title, body: payload.body, tag: payload.tag, url: '/EAFIT/' })
           );
           sent++;
         } catch (err) {

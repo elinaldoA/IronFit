@@ -40,7 +40,7 @@ export default function ProfileAccountSection({
 
       <button className="btn btn--outline btn--full" onClick={onLogout}>Sair da conta</button>
       <button className="btn btn--ghost btn--full" onClick={onDeleteAccount}>Excluir conta</button>
-      <p className="app-version">IronFit v{APP_VERSION}</p>
+      <p className="app-version">EAFIT v{APP_VERSION}</p>
     </>
   );
 }

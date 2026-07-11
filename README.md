@@ -1,11 +1,11 @@
-# IronFit — Treino & Dieta
+# EAFIT — Treino & Dieta
 
 PWA (Progressive Web App) para acompanhamento de treino, dieta e evolução física, com sincronização em nuvem e uso offline.
 
-🔗 **App em produção:** https://elinaldoa.github.io/IronFit/
-📣 **Landing page:** https://elinaldoa.github.io/IronFit/landing/
+🔗 **App em produção:** https://elinaldoa.github.io/EAFIT/
+📣 **Landing page:** https://elinaldoa.github.io/EAFIT/landing/
 
-<img src="docs/landing-demo.gif" alt="Demonstração das telas de Treino, Dieta, Água, Evolução e Perfil do IronFit" width="280" />
+<img src="docs/landing-demo.gif" alt="Demonstração das telas de Treino, Dieta, Água, Evolução e Perfil do EAFIT" width="280" />
 
 ## Funcionalidades
 

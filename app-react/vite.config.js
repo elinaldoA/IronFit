@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
-  base: '/IronFit/',
+  base: '/EAFIT/',
   test: {
     setupFiles: ['./src/test/setupTests.js'],
   },
@@ -20,11 +20,11 @@ export default defineConfig({
       },
       includeAssets: ['icon.svg', 'favicon.svg', 'favicon.ico'],
       manifest: {
-        name: 'IronFit - Treino e Dieta',
-        short_name: 'IronFit',
+        name: 'EAFIT - Treino e Dieta',
+        short_name: 'EAFIT',
         description: 'Seu plano de treino e dieta personalizado',
-        start_url: '/IronFit/',
-        scope: '/IronFit/',
+        start_url: '/EAFIT/',
+        scope: '/EAFIT/',
         display: 'standalone',
         background_color: '#0e0e12',
         theme_color: '#0e0e12',

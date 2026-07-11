@@ -12,17 +12,17 @@ self.addEventListener('message', (event) => {
 cleanupOutdatedCaches();
 precacheAndRoute(self.__WB_MANIFEST);
 
-const APP_URL = '/IronFit/';
+const APP_URL = '/EAFIT/';
 
 self.addEventListener('push', (event) => {
   let data = {};
   try {
     data = event.data ? event.data.json() : {};
   } catch {
-    data = { title: 'IronFit', body: event.data?.text() || '' };
+    data = { title: 'EAFIT', body: event.data?.text() || '' };
   }
 
-  const title = data.title || 'IronFit';
+  const title = data.title || 'EAFIT';
   const options = {
     body: data.body || '',
     tag: data.tag,

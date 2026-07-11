@@ -64,8 +64,8 @@ export default function OnboardingScreen() {
     <div className="auth-screen">
       <div className="auth-inner">
         <div className="auth-logo">
-          <img className="auth-logo__icon" src={logoMark} alt="IronFit" />
-          <div className="auth-logo__name">IRONFIT</div>
+          <img className="auth-logo__icon" src={logoMark} alt="EAFIT" />
+          <div className="auth-logo__name">EAFIT</div>
           <p className="auth-logo__tagline">Vamos montar seu treino e sua dieta</p>
         </div>
         <div className="auth-form">

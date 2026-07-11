@@ -136,12 +136,12 @@ async function drawBodyAvatarSection(ctx, x, y, contentW, day) {
 }
 
 // Watermark (logo + nome do app) pra identificar o app quando o card circula
-// fora do IronFit.
+// fora do EAFIT.
 async function drawWatermark(ctx, width, y, height) {
   ctx.fillStyle = 'rgba(0,0,0,0.22)';
   ctx.fillRect(0, y, width, height);
 
-  const label = 'IronFit';
+  const label = 'EAFIT';
   ctx.textAlign = 'center';
   ctx.font = '800 48px system-ui, sans-serif';
 
@@ -228,7 +228,7 @@ export async function shareWorkoutSummary(summary) {
   const file = new File([blob], 'meu-treino.png', { type: 'image/png' });
 
   if (navigator.canShare && navigator.canShare({ files: [file] })) {
-    await navigator.share({ files: [file], title: 'Meu treino', text: 'Confira meu treino no IronFit! 💪' });
+    await navigator.share({ files: [file], title: 'Meu treino', text: 'Confira meu treino no EAFIT! 💪' });
     return 'shared';
   }
 
