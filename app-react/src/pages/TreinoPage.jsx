@@ -3,7 +3,7 @@ import { TODAY_NAME } from '../data/treinoData';
 import { useAuth } from '../context/AuthContext';
 import { useWorkout } from '../context/WorkoutContext';
 import { useToast } from '../context/ToastContext';
-import { getDateForWeekday } from '../lib/utils';
+import { getDateForWeekday, fmtDate, daysUntil } from '../lib/utils';
 import { db } from '../lib/supabase';
 import RestTimer from '../components/RestTimer';
 import PlanEditorModal from '../components/PlanEditorModal';
@@ -12,7 +12,7 @@ import DayCard from '../components/WorkoutDayCard';
 
 export default function TreinoPage() {
   const { user } = useAuth();
-  const { dataVersion, syncStatus, syncNow, activePlanDays, planExpired, saveWorkoutRating } = useWorkout();
+  const { dataVersion, syncStatus, syncNow, activePlanDays, planExpired, planStartDate, planEndDate, saveWorkoutRating } = useWorkout();
   const toast = useToast();
   const loading = syncStatus === 'loading';
   const [_tick, setTick] = useState(0);
@@ -67,6 +67,11 @@ export default function TreinoPage() {
         <div className="progress-card__bar">
           <div className="progress-card__fill" style={{ width: `${total ? (done / total) * 100 : 0}%` }} />
         </div>
+        {planEndDate && !planExpired && (
+          <p className="progress-card__cycle">
+            📅 Treino válido de {planStartDate ? fmtDate(planStartDate) : '—'} até {fmtDate(planEndDate)} ({Math.max(0, daysUntil(planEndDate))}d restantes) · atualizado automaticamente ao vencer
+          </p>
+        )}
       </div>
       <div className="toolbar">
         <p className="toolbar__hint">

@@ -65,7 +65,10 @@ async function insertDaysAndExercises(planId, days) {
 async function seedDefaultPlan(userId, days = treinoData) {
   const { data: plan, error } = await db
     .from('workout_plans')
-    .insert({ user_id: userId, name: 'Meu plano', is_active: true })
+    .insert({
+      user_id: userId, name: 'Meu plano', is_active: true,
+      start_date: TODAY_DATE, end_date: addWeeks(TODAY_DATE, DEFAULT_CYCLE_WEEKS), duration_weeks: DEFAULT_CYCLE_WEEKS,
+    })
     .select()
     .single();
   if (error) throw error;
@@ -86,7 +89,7 @@ export async function seedGeneratedPlan(userId, generatedDays) {
 // existe mais de um plano ativo ao mesmo tempo (diferente de seedDefaultPlan,
 // que pode inserir direto como ativo porque só roda quando não há nenhum
 // plano ainda).
-export async function createGeneratedPlan(userId, name, generatedDays, durationWeeks = null) {
+export async function createGeneratedPlan(userId, name, generatedDays, durationWeeks = DEFAULT_CYCLE_WEEKS) {
   const { data: plan, error } = await db
     .from('workout_plans')
     .insert({ user_id: userId, name, is_active: false })
@@ -231,6 +234,21 @@ export async function fetchActivePlan(userId, meta = {}) {
     }
   }
 
+  // Backfill: planos ativados antes do ciclo com prazo existir (ou ativados
+  // sem duração pelo editor) não têm start_date/end_date. Atribui um ciclo
+  // padrão agora, pra data de expiração aparecer e a evolução automática
+  // passar a valer também pra planos já em uso.
+  if (!plan.end_date) {
+    const startDate = plan.start_date || TODAY_DATE;
+    const endDate = addWeeks(startDate, DEFAULT_CYCLE_WEEKS);
+    const { error: backfillErr } = await db
+      .from('workout_plans')
+      .update({ start_date: startDate, end_date: endDate, duration_weeks: DEFAULT_CYCLE_WEEKS })
+      .eq('id', plan.id);
+    if (backfillErr) throw backfillErr;
+    plan = { ...plan, start_date: startDate, end_date: endDate, duration_weeks: DEFAULT_CYCLE_WEEKS };
+  }
+
   const days = await fetchPlanDays(plan.id);
 
   if (plan.end_date && plan.end_date <= TODAY_DATE) {
@@ -239,10 +257,10 @@ export async function fetchActivePlan(userId, meta = {}) {
       const next = await fetchActivePlan(userId, meta);
       return { ...next, switchInfo: { toName: successorName, verdict: evaluation.verdict } };
     }
-    return { id: plan.id, name: plan.name, days, expiredNoSuccessor: true };
+    return { id: plan.id, name: plan.name, days, startDate: plan.start_date, endDate: plan.end_date, expiredNoSuccessor: true };
   }
 
-  return { id: plan.id, name: plan.name, days };
+  return { id: plan.id, name: plan.name, days, startDate: plan.start_date, endDate: plan.end_date };
 }
 
 export async function listPlans(userId) {

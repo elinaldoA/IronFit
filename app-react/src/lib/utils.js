@@ -19,6 +19,13 @@ export function fmtDate(dateStr) {
   return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
 }
 
+// Dias restantes até endDate (negativo = já vencido). Compara datas puras
+// (meio-dia local), não timestamps, pra não variar com hora do dia.
+export function daysUntil(endDate) {
+  const diffMs = parseLocalDate(endDate) - parseLocalDate(TODAY_DATE);
+  return Math.round(diffMs / 86400000);
+}
+
 // Returns the "YYYY-MM-DD" date of `dayName` within the calendar week (Sun-Sat) containing today.
 export function getDateForWeekday(dayName) {
   const idx = DAY_NAMES.indexOf(dayName);

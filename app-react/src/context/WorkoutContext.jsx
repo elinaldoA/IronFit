@@ -125,6 +125,8 @@ export function WorkoutProvider({ children }) {
   const [workoutIds, setWorkoutIds] = useState({});
   const [activePlanDays, setActivePlanDays] = useState([]);
   const [planExpired, setPlanExpired] = useState(false);
+  const [planStartDate, setPlanStartDate] = useState(null);
+  const [planEndDate, setPlanEndDate] = useState(null);
   const [syncStatus, setSyncStatus] = useState(() => (queueSize() > 0 ? 'pending' : 'ok'));
   const [dataVersion, setDataVersion] = useState(0);
 
@@ -152,6 +154,8 @@ export function WorkoutProvider({ children }) {
       const plan = await fetchActivePlan(user.id, user.user_metadata);
       const days = plan.days;
       setPlanExpired(!!plan.expiredNoSuccessor);
+      setPlanStartDate(plan.startDate || null);
+      setPlanEndDate(plan.endDate || null);
       if (plan.switchInfo) {
         const verdictLabel = plan.switchInfo.verdict === 'positivo' ? 'progressão'
           : plan.switchInfo.verdict === 'negativo' ? 'recuperação' : 'continuidade';
@@ -211,7 +215,7 @@ export function WorkoutProvider({ children }) {
 
   useEffect(() => {
     if (user) loadUserData();
-    else { setWorkoutIds({}); setActivePlanDays([]); setPlanExpired(false); }
+    else { setWorkoutIds({}); setActivePlanDays([]); setPlanExpired(false); setPlanStartDate(null); setPlanEndDate(null); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
@@ -314,7 +318,7 @@ export function WorkoutProvider({ children }) {
   }
 
   return (
-    <WorkoutContext.Provider value={{ syncStatus, dataVersion, activePlanDays, planExpired, workoutIds, saveWorkoutStatus, saveSetState, saveWorkoutTimer, saveWorkoutRating, syncNow, markPending, refreshPlan: loadUserData }}>
+    <WorkoutContext.Provider value={{ syncStatus, dataVersion, activePlanDays, planExpired, planStartDate, planEndDate, workoutIds, saveWorkoutStatus, saveSetState, saveWorkoutTimer, saveWorkoutRating, syncNow, markPending, refreshPlan: loadUserData }}>
       {children}
     </WorkoutContext.Provider>
   );

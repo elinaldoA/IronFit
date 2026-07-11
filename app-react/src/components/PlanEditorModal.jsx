@@ -4,21 +4,13 @@ import { getModalRoot } from '../lib/modalRoot';
 import { useAuth } from '../context/AuthContext';
 import { useWorkout } from '../context/WorkoutContext';
 import { useToast } from '../context/ToastContext';
-import { parseLocalDate, fmtDate } from '../lib/utils';
-import { TODAY_DATE } from '../data/treinoData';
+import { fmtDate, daysUntil } from '../lib/utils';
 import {
   listPlans, createPlan, setActivePlan, renamePlan, deletePlan, updatePlanSuccessors,
   fetchPlanDays, updatePlanDay, addExercise, updateExercise, deleteExercise, reorderExercises,
 } from '../lib/workoutPlans';
 
 const WEEK_ORDER = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
-
-// Dias restantes até end_date (negativo = ciclo já vencido). Compara datas
-// puras (meio-dia local), não timestamps, pra não variar com hora do dia.
-function daysUntil(endDate) {
-  const diffMs = parseLocalDate(endDate) - parseLocalDate(TODAY_DATE);
-  return Math.round(diffMs / 86400000);
-}
 
 function PlanRow({ plan, allPlans, onSetActive, onRename, onDelete, onUpdateSuccessors }) {
   const [name, setName] = useState(plan.name);

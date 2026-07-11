@@ -495,6 +495,11 @@ button, input { font-family: inherit; }
   background: linear-gradient(90deg, var(--water), #7dd3fc);
 }
 
+.progress-card__cycle {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
 .water-actions {
   display: flex;
   gap: 8px;
