@@ -239,7 +239,7 @@ export function useDietaMeals(user, toast, markPending, updateProfile) {
     // do "Gerar novo cardápio" em Perfil) em vez de só zerar customMeals —
     // customMeals: null caía sempre no template genérico de ganho de massa
     // (getDietaData), ignorando o objetivo real do usuário.
-    const defaults = generateMealPlan({ meta: user?.user_metadata?.meta });
+    const defaults = await generateMealPlan({ meta: user?.user_metadata?.meta });
     const { error } = await updateProfile({ customMeals: defaults });
     if (error) return toast('⚠️ Não foi possível restaurar — tente novamente');
     setMeals(defaults);

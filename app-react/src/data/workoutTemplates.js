@@ -1,9 +1,17 @@
+import { db } from '../lib/supabase';
 import { treinoData } from './treinoData';
 
 // 5 templates base — um por objetivo (`meta`). O de 'massa' reaproveita o
 // plano estático padrão (treinoData) como está. Os focos usados aqui só
 // usam tokens já presentes em MUSCLE_MAP (treinoData.js), senão o heatmap
 // muscular no dashboard silenciosamente ignora o dia.
+//
+// Desde a introdução do backoffice administrativo, estes arrays deixaram de
+// ser a fonte principal: generatePlan busca a versão atual em
+// public.workout_templates (editável via app-admin) e só cai pra estes
+// arrays locais se o fetch falhar (rede indisponível, etc.) — mesmo
+// espírito de resiliência de lib/syncQueue.js, que já trata a rede como não
+// garantida neste app.
 
 const FORCA = [
     { dia: 'Segunda', foco: 'Peito / Tríceps', exercicios: [
@@ -343,11 +351,21 @@ export function applyLevelAdjustment(templateDays, nivel) {
     });
 }
 
+async function fetchBaseTemplate(meta) {
+    try {
+        const { data, error } = await db.from('workout_templates').select('days').eq('meta', meta).single();
+        if (error || !Array.isArray(data?.days) || data.days.length === 0) throw error || new Error('empty');
+        return data.days;
+    } catch {
+        return BASE_TEMPLATES[meta] || BASE_TEMPLATES.saude;
+    }
+}
+
 // sexo/idade não influenciam a seleção de exercícios nesta versão — só o
 // cálculo de macros (getMacroGoals, em treinoData.js). Aceitos aqui só para
 // manter a mesma assinatura de perfil usada na tela de onboarding.
-export function generatePlan({ peso, altura, meta, nivel }) {
-    const base = BASE_TEMPLATES[meta] || BASE_TEMPLATES.saude;
+export async function generatePlan({ peso, altura, meta, nivel }) {
+    const base = await fetchBaseTemplate(meta);
     const leveled = applyLevelAdjustment(base, nivel);
     const bracket = computeImcBracket(peso, altura);
     return applyImcAdjustment(leveled, bracket);

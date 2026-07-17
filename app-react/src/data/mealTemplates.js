@@ -1,3 +1,4 @@
+import { db } from '../lib/supabase';
 import { dietaData } from './treinoData';
 
 // 5 templates de refeição — um por objetivo (`meta`), no mesmo espírito do
@@ -5,6 +6,10 @@ import { dietaData } from './treinoData';
 // estático padrão (dietaData) como está. As metas de macro em si continuam
 // vindo de getMacroGoals (treinoData.js); aqui só variam os alimentos e o
 // número/horário das refeições por objetivo.
+//
+// Mesmo esquema de fallback de workoutTemplates.js: generateMealPlan busca
+// primeiro em public.meal_templates (editável via app-admin) e só usa estes
+// arrays locais se o fetch falhar.
 
 // kcal/proteina/carboidrato/gordura são estimativas aproximadas — ver
 // comentário equivalente em dietaData (treinoData.js).
@@ -54,9 +59,19 @@ const BASE_MEAL_TEMPLATES = {
     saude: SAUDE,
 };
 
+async function fetchBaseMealTemplate(meta) {
+    try {
+        const { data, error } = await db.from('meal_templates').select('meals').eq('meta', meta).single();
+        if (error || !Array.isArray(data?.meals) || data.meals.length === 0) throw error || new Error('empty');
+        return data.meals;
+    } catch {
+        return BASE_MEAL_TEMPLATES[meta] || BASE_MEAL_TEMPLATES.saude;
+    }
+}
+
 // meta é o único fator considerado — sexo/idade/peso/altura já entram no
 // cálculo das metas de macro (getMacroGoals, em treinoData.js).
-export function generateMealPlan({ meta }) {
-    const base = BASE_MEAL_TEMPLATES[meta] || BASE_MEAL_TEMPLATES.saude;
+export async function generateMealPlan({ meta }) {
+    const base = await fetchBaseMealTemplate(meta);
     return base.map(meal => ({ ...meal }));
 }

@@ -1,5 +1,14 @@
-import { describe, it, expect } from 'vitest';
-import { computeImcBracket, applyImcAdjustment, applyLevelAdjustment, generatePlan } from './workoutTemplates';
+import { describe, it, expect, vi } from 'vitest';
+
+// generatePlan agora busca o template-base em public.workout_templates
+// primeiro (editável via app-admin) e só cai pros arrays locais (testados
+// aqui) se o fetch falhar — força a falha pra continuar testando a lógica
+// local de IMC/nível sem depender de rede.
+vi.mock('../lib/supabase', () => ({
+  db: { from: () => ({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: null, error: { message: 'offline' } }) }) }) }) },
+}));
+
+const { computeImcBracket, applyImcAdjustment, applyLevelAdjustment, generatePlan } = await import('./workoutTemplates');
 
 describe('computeImcBracket', () => {
   it('classifica cada faixa de IMC corretamente', () => {
@@ -109,15 +118,15 @@ describe('applyLevelAdjustment', () => {
 });
 
 describe('generatePlan', () => {
-  it('gera um plano de 7 dias para cada objetivo', () => {
+  it('gera um plano de 7 dias para cada objetivo', async () => {
     for (const meta of ['massa', 'forca', 'emagrecer', 'definicao', 'saude']) {
-      const plan = generatePlan({ peso: 80, altura: 178, meta, nivel: 'intermediario' });
+      const plan = await generatePlan({ peso: 80, altura: 178, meta, nivel: 'intermediario' });
       expect(plan).toHaveLength(7);
     }
   });
 
-  it('cai no template de "saude" para um objetivo desconhecido', () => {
-    const plan = generatePlan({ peso: 80, altura: 178, meta: 'inexistente', nivel: 'intermediario' });
+  it('cai no template de "saude" para um objetivo desconhecido', async () => {
+    const plan = await generatePlan({ peso: 80, altura: 178, meta: 'inexistente', nivel: 'intermediario' });
     expect(plan).toHaveLength(7);
   });
 });

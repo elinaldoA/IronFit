@@ -130,7 +130,7 @@ export default function PerfilPage({ active }) {
 
     setRegenerating(true);
     try {
-      const generatedDays = generatePlan({ peso: pesoNum, altura: alturaNum, meta, nivel });
+      const generatedDays = await generatePlan({ peso: pesoNum, altura: alturaNum, meta, nivel });
       await createGeneratedPlan(user.id, `Plano gerado ${new Date().toLocaleDateString('pt-BR')}`, generatedDays);
       await refreshPlan();
       toast('✅ Novo treino gerado e ativado!');
@@ -148,7 +148,7 @@ export default function PerfilPage({ active }) {
 
     setRegeneratingMeals(true);
     try {
-      const generatedMeals = generateMealPlan({ meta });
+      const generatedMeals = await generateMealPlan({ meta });
       // Persiste `meta` junto com o cardápio: sem isso, as metas de macro
       // (getMacroGoals) continuam calculadas pro objetivo salvo anteriormente,
       // contradizendo o cardápio recém-gerado se o usuário trocou o select

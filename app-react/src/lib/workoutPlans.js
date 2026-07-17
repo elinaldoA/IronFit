@@ -162,7 +162,7 @@ export async function autoGenerateNextCycle(userId, plan, evaluation, meta = {})
   if (!meta?.peso || !meta?.altura) return { switched: false, evaluation };
 
   const nivelAjustado = adjustNivelForVerdict(meta.nivel, evaluation.verdict);
-  const generatedDays = generatePlan({ peso: meta.peso, altura: meta.altura, meta: meta.meta, nivel: nivelAjustado });
+  const generatedDays = await generatePlan({ peso: meta.peso, altura: meta.altura, meta: meta.meta, nivel: nivelAjustado });
 
   const label = VERDICT_LABEL[evaluation.verdict] || 'Continuidade';
   const name = `${label} automática (${TODAY_DATE})`;

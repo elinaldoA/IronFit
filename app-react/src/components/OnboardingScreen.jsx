@@ -45,10 +45,10 @@ export default function OnboardingScreen() {
       // essa busca corre em paralelo com a criação do plano personalizado e
       // pode disparar o fallback de plano padrão antes dele existir,
       // gerando dois planos ativos.
-      const generatedDays = generatePlan({ sexo, idade: idadeNum, peso: pesoNum, altura: alturaNum, meta, nivel });
+      const generatedDays = await generatePlan({ sexo, idade: idadeNum, peso: pesoNum, altura: alturaNum, meta, nivel });
       await seedGeneratedPlan(user.id, generatedDays);
 
-      const generatedMeals = generateMealPlan({ meta });
+      const generatedMeals = await generateMealPlan({ meta });
       const { error } = await updateProfile({ sexo, idade: idadeNum, peso: pesoNum, altura: alturaNum, meta, nivel, customMeals: generatedMeals });
       if (error) throw error;
     } catch (err) {
