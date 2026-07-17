@@ -60,7 +60,14 @@ export default function AuditLog() {
                 <td data-label="Admin">{r.admin_email || '—'}</td>
                 <td data-label="Ação">{ACTION_LABEL[r.action] || r.action}</td>
                 <td data-label="Alvo">{r.target_email || '—'}</td>
-                <td data-label="Detalhes">{r.details ? JSON.stringify(r.details) : '—'}</td>
+                <td data-label="Detalhes">
+                  {r.details ? (
+                    <details>
+                      <summary style={{ cursor: 'pointer' }}>ver</summary>
+                      <pre className="template-json-preview">{JSON.stringify(r.details, null, 2)}</pre>
+                    </details>
+                  ) : '—'}
+                </td>
               </tr>
             ))}
             {rows.length === 0 && <tr><td colSpan={5}><EmptyState icon="🕒" label="Nenhuma ação registrada ainda." /></td></tr>}

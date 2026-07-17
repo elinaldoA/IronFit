@@ -298,7 +298,13 @@ Deno.serve(async (req) => {
     const { error: updErr } = await admin.auth.admin.updateUserById(targetUserId, { user_metadata: mergedMetadata });
     if (updErr) throw updErr;
 
-    await admin.from('admin_audit_log').insert({ admin_id: callerId, target_user_id: targetUserId, action: 'generateMeal', details: { meta } });
+    // Guarda o cardápio anterior em details — diferente de workout_plans (que
+    // mantém o plano antigo, só inativo), customMeals é sobrescrito sem
+    // histórico, então isso é a única forma de recuperar o valor de antes.
+    await admin.from('admin_audit_log').insert({
+      admin_id: callerId, target_user_id: targetUserId, action: 'generateMeal',
+      details: { meta, previousMeals: md.customMeals ?? null },
+    });
     return json({ ok: true });
   } catch (err) {
     console.error('admin-generate-plan error:', err);
