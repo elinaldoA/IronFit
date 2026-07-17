@@ -539,6 +539,17 @@ a { color: var(--primary); }
 
 .day-editor__head .field { flex: 1; }
 
+.landing-section__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.landing-section__head strong { flex: 1; font-size: 14px; }
+.landing-section__visible { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-muted); font-weight: 400; }
+
 .exercise-list__title { font-size: 12px; color: var(--text-muted); margin: 12px 0 6px; }
 
 .exercise-row {

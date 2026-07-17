@@ -294,7 +294,7 @@
   </header>
 
   <main id="top">
-    <section class="hero">
+    <section class="hero" data-section="hero">
       <div class="wrap">
         <span class="badge"><span class="dot"></span> Grátis · instalável · funciona offline</span>
         <h1>Pare de treinar sem rumo.<br />Veja sua evolução <span class="grad">acontecer de verdade</span></h1>
@@ -339,7 +339,7 @@
       </div>
     </section>
 
-    <div class="highlights">
+    <div class="highlights" data-section="highlights">
       <div class="highlight">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path></svg>
         Sync automático
@@ -358,7 +358,7 @@
       </div>
     </div>
 
-    <section>
+    <section data-section="compare">
       <div class="wrap">
         <div class="section-head">
           <h2>Sua rotina hoje vs. sua rotina com o EAFIT</h2>
@@ -387,7 +387,7 @@
       </div>
     </section>
 
-    <section id="features">
+    <section id="features" data-section="features">
       <div class="wrap">
         <div class="section-head">
           <h2>Tudo que você precisa pra treinar sério</h2>
@@ -440,7 +440,7 @@
       </div>
     </section>
 
-    <section>
+    <section data-section="steps">
       <div class="wrap">
         <div class="section-head">
           <h2>Como funciona</h2>
@@ -466,7 +466,7 @@
       </div>
     </section>
 
-    <section>
+    <section data-section="cta">
       <div class="wrap">
         <div class="cta-band reveal">
           <h2>Pronto pra começar a treinar sério?</h2>
@@ -527,6 +527,162 @@
       });
     }, { threshold: 0.15 });
     document.querySelectorAll('.reveal').forEach(function (el) { io.observe(el); });
+  </script>
+
+  <script>
+    // Substitui o conteúdo estático acima (fallback pra SEO / JS desligado /
+    // fetch indisponível) pelo que o admin salvou em public.landing_content
+    // via app-admin/src/pages/LandingEditor.jsx. Chave anon pública — mesma
+    // exposta no bundle do app (app-react/.env VITE_SUPABASE_ANON_KEY),
+    // protegida só pela RLS (select liberado, insert/update exige is_admin()).
+    (function () {
+      var SUPABASE_URL = 'https://btzdetvoneyhzthsmdrp.supabase.co';
+      var SUPABASE_ANON_KEY = 'sb_publishable_NJWhkVt39gqzkAcmvmhw_g_9coJjxnb';
+
+      // Chaves precisam bater com ICON_OPTIONS em app-admin/src/pages/LandingEditor.jsx.
+      var ICONS = {
+        cloud: '<path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path>',
+        download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line>',
+        'wifi-off': '<path d="M1 1l22 22"></path><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"></path><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"></path><path d="M10.71 5.05A16 16 0 0 1 22.58 9"></path><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"></path><path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path><line x1="12" y1="20" x2="12.01" y2="20"></line>',
+        tag: '<path d="M20.59 13.41L13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line>',
+        activity: '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>',
+        droplet: '<path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"></path>',
+        chart: '<line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line>',
+        user: '<circle cx="12" cy="7" r="4"></circle><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>',
+      };
+
+      function svgIcon(key, size) {
+        size = size || 22;
+        return '<svg width="' + size + '" height="' + size + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + (ICONS[key] || ICONS.activity) + '</svg>';
+      }
+
+      function esc(s) {
+        var div = document.createElement('div');
+        div.textContent = s == null ? '' : String(s);
+        return div.innerHTML;
+      }
+
+      function hexToRgb(hex) {
+        var clean = hex.replace('#', '');
+        if (clean.length === 3) clean = clean.split('').map(function (c) { return c + c; }).join('');
+        var num = parseInt(clean, 16);
+        return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 };
+      }
+
+      function applyPrimaryColor(hex) {
+        if (!hex || !/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(hex)) return;
+        var rgb = hexToRgb(hex);
+        var lighten = function (v) { return Math.min(255, Math.round(v + (255 - v) * 0.2)); };
+        var hoverHex = '#' + [lighten(rgb.r), lighten(rgb.g), lighten(rgb.b)]
+          .map(function (v) { return v.toString(16).padStart(2, '0'); }).join('');
+        var root = document.documentElement.style;
+        root.setProperty('--primary', hex);
+        root.setProperty('--primary-h', hoverHex);
+        root.setProperty('--primary-glow', 'rgba(' + rgb.r + ',' + rgb.g + ',' + rgb.b + ',.18)');
+      }
+
+      function renderHero(section, el) {
+        var badge = el.querySelector('.badge');
+        if (badge) badge.innerHTML = '<span class="dot"></span> ' + esc(section.badge);
+        var h1 = el.querySelector('h1');
+        if (h1) h1.innerHTML = esc(section.titleTop) + '<br />' + esc(section.titleBottom) + ' <span class="grad">' + esc(section.titleHighlight) + '</span>';
+        var lead = el.querySelector('.lead');
+        if (lead) lead.textContent = section.lead || '';
+        var actions = el.querySelectorAll('.hero-actions .btn');
+        if (actions[0]) actions[0].textContent = section.ctaPrimaryLabel || actions[0].textContent;
+        if (actions[1]) actions[1].textContent = section.ctaSecondaryLabel || actions[1].textContent;
+      }
+
+      function renderHighlights(section, el) {
+        var items = section.items || [];
+        el.style.gridTemplateColumns = 'repeat(' + Math.max(items.length, 1) + ', 1fr)';
+        el.innerHTML = items.map(function (item) {
+          return '<div class="highlight">' + svgIcon(item.icon, 18) + esc(item.label) + '</div>';
+        }).join('');
+      }
+
+      function renderCompare(section, el) {
+        var head = el.querySelector('.section-head');
+        if (head) {
+          var h2 = head.querySelector('h2'); if (h2) h2.textContent = section.title || '';
+          var p = head.querySelector('p'); if (p) p.textContent = section.subtitle || '';
+        }
+        var bad = el.querySelector('.compare-col:not(.good)');
+        if (bad) {
+          var badTag = bad.querySelector('.compare-tag'); if (badTag) badTag.textContent = section.badLabel || '';
+          var badUl = bad.querySelector('ul');
+          if (badUl) badUl.innerHTML = (section.badItems || []).map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('');
+        }
+        var good = el.querySelector('.compare-col.good');
+        if (good) {
+          var goodTag = good.querySelector('.compare-tag'); if (goodTag) goodTag.textContent = section.goodLabel || '';
+          var goodUl = good.querySelector('ul');
+          if (goodUl) goodUl.innerHTML = (section.goodItems || []).map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('');
+        }
+      }
+
+      function renderFeatures(section, el) {
+        var head = el.querySelector('.section-head');
+        if (head) {
+          var h2 = head.querySelector('h2'); if (h2) h2.textContent = section.title || '';
+          var p = head.querySelector('p'); if (p) p.textContent = section.subtitle || '';
+        }
+        var grid = el.querySelector('.features');
+        if (grid) {
+          grid.innerHTML = (section.items || []).map(function (item) {
+            return '<div class="card"><div class="icon-badge">' + svgIcon(item.icon) + '</div><h3>' + esc(item.title) + '</h3><p>' + esc(item.description) + '</p></div>';
+          }).join('');
+        }
+      }
+
+      function renderSteps(section, el) {
+        var head = el.querySelector('.section-head');
+        if (head) {
+          var h2 = head.querySelector('h2'); if (h2) h2.textContent = section.title || '';
+          var p = head.querySelector('p'); if (p) p.textContent = section.subtitle || '';
+        }
+        var grid = el.querySelector('.steps');
+        if (grid) {
+          grid.innerHTML = (section.items || []).map(function (item, i) {
+            return '<div class="step"><span class="num">' + (i + 1) + '</span><h3>' + esc(item.title) + '</h3><p>' + esc(item.description) + '</p></div>';
+          }).join('');
+        }
+      }
+
+      function renderCta(section, el) {
+        var band = el.querySelector('.cta-band');
+        if (!band) return;
+        var h2 = band.querySelector('h2'); if (h2) h2.textContent = section.title || '';
+        var p = band.querySelector('p'); if (p) p.textContent = section.subtitle || '';
+        var btn = band.querySelector('.btn'); if (btn) btn.textContent = section.ctaLabel || btn.textContent;
+      }
+
+      var RENDERERS = { hero: renderHero, highlights: renderHighlights, compare: renderCompare, features: renderFeatures, steps: renderSteps, cta: renderCta };
+
+      function applyContent(content) {
+        if (!content || !Array.isArray(content.sections)) return;
+        if (content.theme && content.theme.primaryColor) applyPrimaryColor(content.theme.primaryColor);
+        var main = document.getElementById('top');
+        content.sections.forEach(function (section) {
+          var el = main.querySelector('[data-section="' + section.id + '"]');
+          if (!el) return;
+          el.style.display = section.enabled === false ? 'none' : '';
+          var renderer = RENDERERS[section.type];
+          if (renderer && section.enabled !== false) renderer(section, el);
+          main.appendChild(el); // reordena: reinserir na ordem do content move o nó pro fim
+        });
+      }
+
+      fetch(SUPABASE_URL + '/rest/v1/landing_content?select=content&id=eq.1', {
+        headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY },
+      })
+        .then(function (r) { return r.ok ? r.json() : []; })
+        .then(function (rows) {
+          var row = rows && rows[0];
+          if (row && row.content) applyContent(row.content);
+        })
+        .catch(function () { /* mantém o conteúdo estático padrão acima */ });
+    })();
   </script>
 
 </body>

@@ -6,6 +6,7 @@ const links = [
   { to: '/users', label: 'Usuários', icon: '👥' },
   { to: '/notificacoes', label: 'Notificações', icon: '🔔' },
   { to: '/conteudo', label: 'Conteúdo', icon: '📋' },
+  { to: '/landing', label: 'Landing page', icon: '🖥️' },
   { to: '/auditoria', label: 'Auditoria', icon: '🕒' },
   { to: '/perfil', label: 'Meu perfil', icon: '👤' },
 ];

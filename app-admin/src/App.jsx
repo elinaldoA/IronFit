@@ -11,6 +11,7 @@ import Broadcast from './pages/Broadcast';
 import Templates from './pages/Templates';
 import AuditLog from './pages/AuditLog';
 import Profile from './pages/Profile';
+import LandingEditor from './pages/LandingEditor';
 
 export default function App() {
   return (
@@ -27,6 +28,7 @@ export default function App() {
                 <Route path="/notificacoes" element={<Broadcast />} />
                 <Route path="/conteudo" element={<Templates />} />
                 <Route path="/auditoria" element={<AuditLog />} />
+                <Route path="/landing" element={<LandingEditor />} />
                 <Route path="/perfil" element={<Profile />} />
               </Route>
             </Route>
