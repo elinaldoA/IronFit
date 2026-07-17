@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'app-react/**'
+      - 'app-admin/**'
       - '.github/workflows/deploy.yml'
   workflow_dispatch:
 
@@ -20,27 +21,50 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: app-react
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: app-react/package-lock.json
-      - run: npm ci
-      - run: npm run lint
-      - run: npm test
-      - run: npm run build
+
+      - name: Build app-react
+        working-directory: app-react
+        run: |
+          npm ci
+          npm run lint
+          npm test
+          npm run build
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
           VITE_VAPID_PUBLIC_KEY: ${{ secrets.VITE_VAPID_PUBLIC_KEY }}
+
+      - name: Build app-admin
+        working-directory: app-admin
+        run: |
+          npm ci
+          npm run lint
+          npm test
+          npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+
+      # app-react vira a raiz do site (/EAFIT/) e app-admin fica em /EAFIT/admin/ —
+      # os dois "base" dos vite.config.js já apontam pra esses caminhos.
+      - name: Combine sites
+        run: |
+          mkdir -p combined
+          cp -r app-react/dist/. combined/
+          mkdir -p combined/admin
+          cp -r app-admin/dist/. combined/admin/
+
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: app-react/dist
+          path: combined
 
   deploy:
     needs: build
