@@ -7,6 +7,7 @@ const links = [
   { to: '/notificacoes', label: 'Notificações', icon: '🔔' },
   { to: '/conteudo', label: 'Conteúdo', icon: '📋' },
   { to: '/auditoria', label: 'Auditoria', icon: '🕒' },
+  { to: '/perfil', label: 'Meu perfil', icon: '👤' },
 ];
 
 export default function Sidebar({ open, onClose }) {

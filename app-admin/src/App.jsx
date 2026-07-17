@@ -10,6 +10,7 @@ import UserDetail from './pages/UserDetail';
 import Broadcast from './pages/Broadcast';
 import Templates from './pages/Templates';
 import AuditLog from './pages/AuditLog';
+import Profile from './pages/Profile';
 
 export default function App() {
   return (
@@ -26,6 +27,7 @@ export default function App() {
                 <Route path="/notificacoes" element={<Broadcast />} />
                 <Route path="/conteudo" element={<Templates />} />
                 <Route path="/auditoria" element={<AuditLog />} />
+                <Route path="/perfil" element={<Profile />} />
               </Route>
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />

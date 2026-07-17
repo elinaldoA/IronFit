@@ -70,8 +70,20 @@ export function AdminAuthProvider({ children }) {
     setAdminUser(null);
   }
 
+  async function updateProfile(fields) {
+    const { data, error } = await db.auth.updateUser({ data: fields });
+    if (!error && data?.user) setAdminUser(data.user);
+    return { error: error?.message };
+  }
+
+  async function updatePassword(password) {
+    if (password.length < 6) return { error: 'Senha: mínimo 6 caracteres.' };
+    const { error } = await db.auth.updateUser({ password });
+    return { error: error?.message };
+  }
+
   return (
-    <AdminAuthContext.Provider value={{ adminUser, authLoading, login, logout }}>
+    <AdminAuthContext.Provider value={{ adminUser, authLoading, login, logout, updateProfile, updatePassword }}>
       {children}
     </AdminAuthContext.Provider>
   );
