@@ -290,9 +290,23 @@ Deno.serve(async (req) => {
     }
 
     // kind === 'meal'
-    const { data: mealTpl, error: mealTplErr } = await admin
-      .from('meal_templates').select('meals').eq('meta', meta).single();
-    if (mealTplErr || !mealTpl?.meals) throw mealTplErr || new Error('Template não encontrado.');
+    // meal_templates tem chave composta (meta, restricao) — busca a variante
+    // exata e degrada pra 'padrao' se não existir, mesma cadeia de
+    // app-react/src/data/mealTemplates.js:fetchBaseMealTemplate (port
+    // deliberado, ver comentário no topo deste arquivo).
+    const restricaoAlimentar = (md.restricaoAlimentar as string) || 'padrao';
+    let mealTpl: { meals: unknown } | null = null;
+    {
+      const { data } = await admin
+        .from('meal_templates').select('meals').eq('meta', meta).eq('restricao', restricaoAlimentar).maybeSingle();
+      mealTpl = data;
+    }
+    if (!mealTpl?.meals && restricaoAlimentar !== 'padrao') {
+      const { data } = await admin
+        .from('meal_templates').select('meals').eq('meta', meta).eq('restricao', 'padrao').maybeSingle();
+      mealTpl = data;
+    }
+    if (!mealTpl?.meals) throw new Error('Template não encontrado.');
 
     const mergedMetadata = { ...md, customMeals: mealTpl.meals };
     const { error: updErr } = await admin.auth.admin.updateUserById(targetUserId, { user_metadata: mergedMetadata });
@@ -303,7 +317,7 @@ Deno.serve(async (req) => {
     // histórico, então isso é a única forma de recuperar o valor de antes.
     await admin.from('admin_audit_log').insert({
       admin_id: callerId, target_user_id: targetUserId, action: 'generateMeal',
-      details: { meta, previousMeals: md.customMeals ?? null },
+      details: { meta, restricaoAlimentar, previousMeals: md.customMeals ?? null },
     });
     return json({ ok: true });
   } catch (err) {

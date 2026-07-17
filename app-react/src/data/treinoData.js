@@ -104,6 +104,7 @@ const META_KCAL_FACTOR = {
     emagrecer: 0.80,
     definicao: 0.90,
     saude: 1.00,
+    resistencia: 1.05,
 };
 
 const META_MACRO_RATIO = {
@@ -112,6 +113,9 @@ const META_MACRO_RATIO = {
     emagrecer: { proteina: 2.2, gordura: 0.8 },
     definicao: { proteina: 2.2, gordura: 0.8 },
     saude: { proteina: 1.6, gordura: 0.9 },
+    // Resistência prioriza carboidrato (glicogênio) sobre proteína alta —
+    // por isso o menor g/kg de proteína do grupo.
+    resistencia: { proteina: 1.4, gordura: 0.8 },
 };
 
 // Mifflin-St Jeor: estima TDEE a partir de peso/altura/idade/sexo, ajusta

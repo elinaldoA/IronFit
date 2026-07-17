@@ -37,6 +37,7 @@ export default function PerfilPage({ active }) {
   const [altura, setAltura] = useState(md.altura || localStorage.getItem('profile_altura') || '');
   const [meta, setMeta] = useState(md.meta || localStorage.getItem('profile_meta') || 'massa');
   const [nivel, setNivel] = useState(md.nivel || localStorage.getItem('profile_nivel') || 'intermediario');
+  const [restricaoAlimentar, setRestricaoAlimentar] = useState(md.restricaoAlimentar || localStorage.getItem('profile_restricaoAlimentar') || 'padrao');
   const [pesoAlvo, setPesoAlvo] = useState(md.pesoAlvo || localStorage.getItem('profile_pesoAlvo') || '');
   const [macroKcal, setMacroKcal] = useState(md.macroKcal || localStorage.getItem('profile_macroKcal') || '');
   const [macroProteina, setMacroProteina] = useState(md.macroProteina || localStorage.getItem('profile_macroProteina') || '');
@@ -101,8 +102,9 @@ export default function PerfilPage({ active }) {
     localStorage.setItem('profile_altura', altura);
     localStorage.setItem('profile_meta', meta);
     localStorage.setItem('profile_nivel', nivel);
+    localStorage.setItem('profile_restricaoAlimentar', restricaoAlimentar);
     localStorage.setItem('profile_pesoAlvo', pesoAlvo);
-    const { error } = await updateProfile({ sexo, idade, peso, altura, meta, nivel, pesoAlvo });
+    const { error } = await updateProfile({ sexo, idade, peso, altura, meta, nivel, restricaoAlimentar, pesoAlvo });
     if (error) return toast('⚠️ Não foi possível salvar — tente novamente');
 
     if (user && peso) {
@@ -148,13 +150,15 @@ export default function PerfilPage({ active }) {
 
     setRegeneratingMeals(true);
     try {
-      const generatedMeals = await generateMealPlan({ meta });
-      // Persiste `meta` junto com o cardápio: sem isso, as metas de macro
-      // (getMacroGoals) continuam calculadas pro objetivo salvo anteriormente,
-      // contradizendo o cardápio recém-gerado se o usuário trocou o select
-      // sem clicar em "Salvar dados corporais" antes de regenerar.
+      const generatedMeals = await generateMealPlan({ meta, restricaoAlimentar });
+      // Persiste `meta`/`restricaoAlimentar` junto com o cardápio: sem isso,
+      // as metas de macro (getMacroGoals) continuam calculadas pro objetivo
+      // salvo anteriormente, contradizendo o cardápio recém-gerado se o
+      // usuário trocou o select sem clicar em "Salvar dados corporais" antes
+      // de regenerar.
       localStorage.setItem('profile_meta', meta);
-      const { error } = await updateProfile({ meta, customMeals: generatedMeals });
+      localStorage.setItem('profile_restricaoAlimentar', restricaoAlimentar);
+      const { error } = await updateProfile({ meta, restricaoAlimentar, customMeals: generatedMeals });
       if (error) throw error;
       toast('✅ Novo cardápio gerado!');
     } catch (err) {
@@ -235,6 +239,7 @@ export default function PerfilPage({ active }) {
           sexo={sexo} setSexo={setSexo} idade={idade} setIdade={setIdade}
           peso={peso} setPeso={setPeso} altura={altura} setAltura={setAltura}
           meta={meta} setMeta={setMeta} nivel={nivel} setNivel={setNivel}
+          restricaoAlimentar={restricaoAlimentar} setRestricaoAlimentar={setRestricaoAlimentar}
           pesoAlvo={pesoAlvo} setPesoAlvo={setPesoAlvo}
           progress={progress} imc={imc} onSave={handleSave}
           regenerating={regenerating} onRegeneratePlan={handleRegeneratePlan}

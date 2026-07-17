@@ -51,27 +51,53 @@ const SAUDE = [
     { horario: '20:00', nome: '🍽️ Jantar',           descricao: 'Proteína magra · Legumes · Salada — porções moderadas', kcal:350, proteina:35, carboidrato:20, gordura:10 },
 ];
 
+// Objetivo cardio/resistência — sem variante local por restrição (só a
+// versão padrão fica no bundle; vegetariano/low_carb vivem só no banco, ver
+// comentário abaixo em fetchBaseMealTemplate).
+const RESISTENCIA = [
+    { horario: '07:00', nome: '☀️ Café da manhã',  descricao: '60g aveia + 1 banana · 2 ovos · Café preto', kcal:480, proteina:22, carboidrato:70, gordura:12 },
+    { horario: '10:00', nome: '🍏 Lanche da manhã', descricao: '1 iogurte natural · Granola · 1 fruta', kcal:350, proteina:14, carboidrato:55, gordura:9 },
+    { horario: '12:30', nome: '🥗 Almoço',          descricao: '180g frango ou peixe · 250g arroz ou macarrão · Legumes · Salada com azeite', kcal:750, proteina:55, carboidrato:95, gordura:18 },
+    { horario: '16:00', nome: '⚡ Pré-treino',       descricao: 'Banana + mel · Café preto', kcal:200, proteina:3, carboidrato:48, gordura:1 },
+    { horario: '18:00', nome: '🏋️ Treino',          descricao: 'Beba **500ml a 1L** de água durante o treino', kcal:0, proteina:0, carboidrato:0, gordura:0 },
+    { horario: '19:30', nome: '🍽️ Pós-treino / Jantar', descricao: '180g frango ou peixe · 200g batata-doce ou arroz · Legumes cozidos', kcal:650, proteina:50, carboidrato:80, gordura:14 },
+    { horario: '21:30', nome: '🥛 Ceia (opcional)', descricao: 'Se bater fome: 1 iogurte natural ou 2 ovos cozidos', kcal:180, proteina:15, carboidrato:10, gordura:8 },
+];
+
 const BASE_MEAL_TEMPLATES = {
     massa: dietaData,
     forca: FORCA,
     emagrecer: EMAGRECER,
     definicao: DEFINICAO,
     saude: SAUDE,
+    resistencia: RESISTENCIA,
 };
 
-async function fetchBaseMealTemplate(meta) {
+// Busca a combinação exata (meta + restrição alimentar); se essa variante
+// não existir no banco, degrada pra versão padrão do mesmo objetivo antes de
+// cair no array local — mesma cadeia de resiliência de sempre, só que agora
+// com um passo a mais porque existe mais de um candidato por objetivo.
+async function fetchBaseMealTemplate(meta, restricao) {
+    const wanted = restricao || 'padrao';
     try {
-        const { data, error } = await db.from('meal_templates').select('meals').eq('meta', meta).single();
-        if (error || !Array.isArray(data?.meals) || data.meals.length === 0) throw error || new Error('empty');
-        return data.meals;
-    } catch {
-        return BASE_MEAL_TEMPLATES[meta] || BASE_MEAL_TEMPLATES.saude;
+        const { data, error } = await db.from('meal_templates').select('meals').eq('meta', meta).eq('restricao', wanted).maybeSingle();
+        if (!error && Array.isArray(data?.meals) && data.meals.length > 0) return data.meals;
+    } catch { /* segue pro próximo fallback */ }
+
+    if (wanted !== 'padrao') {
+        try {
+            const { data, error } = await db.from('meal_templates').select('meals').eq('meta', meta).eq('restricao', 'padrao').maybeSingle();
+            if (!error && Array.isArray(data?.meals) && data.meals.length > 0) return data.meals;
+        } catch { /* segue pro fallback local */ }
     }
+
+    return BASE_MEAL_TEMPLATES[meta] || BASE_MEAL_TEMPLATES.saude;
 }
 
-// meta é o único fator considerado — sexo/idade/peso/altura já entram no
-// cálculo das metas de macro (getMacroGoals, em treinoData.js).
-export async function generateMealPlan({ meta }) {
-    const base = await fetchBaseMealTemplate(meta);
+// meta decide o objetivo nutricional (kcal/macros vêm de getMacroGoals, em
+// treinoData.js); restricaoAlimentar decide quais alimentos entram no
+// cardápio pra chegar lá.
+export async function generateMealPlan({ meta, restricaoAlimentar }) {
+    const base = await fetchBaseMealTemplate(meta, restricaoAlimentar);
     return base.map(meal => ({ ...meal }));
 }

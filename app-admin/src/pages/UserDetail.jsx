@@ -6,8 +6,9 @@ import { toCsv, downloadCsv } from '../lib/csv';
 import Loading from '../components/Loading';
 import EmptyState from '../components/EmptyState';
 
-const METAS = ['massa', 'forca', 'emagrecer', 'definicao', 'saude'];
+const METAS = ['massa', 'forca', 'emagrecer', 'definicao', 'saude', 'resistencia'];
 const NIVEIS = ['iniciante', 'intermediario', 'avancado'];
+const RESTRICOES = ['padrao', 'vegetariano', 'low_carb'];
 
 function formatDate(value) {
   if (!value) return '—';
@@ -74,6 +75,7 @@ export default function UserDetail() {
         nome: md.nome || '', sobrenome: md.sobrenome || '', apelido: md.apelido || '',
         sexo: md.sexo || '', idade: md.idade || '', peso: md.peso || '', altura: md.altura || '',
         meta: md.meta || 'massa', nivel: md.nivel || 'intermediario', pesoAlvo: md.pesoAlvo || '',
+        restricaoAlimentar: md.restricaoAlimentar || 'padrao',
       });
       const rawPlan = plan.data;
       setActivePlan(rawPlan ? {
@@ -257,6 +259,12 @@ export default function UserDetail() {
             <span className="field__label">Nível</span>
             <select className="input" value={form.nivel} onChange={e => setForm({ ...form, nivel: e.target.value })}>
               {NIVEIS.map(n => <option key={n} value={n}>{n}</option>)}
+            </select>
+          </label>
+          <label className="field">
+            <span className="field__label">Restrição alimentar</span>
+            <select className="input" value={form.restricaoAlimentar} onChange={e => setForm({ ...form, restricaoAlimentar: e.target.value })}>
+              {RESTRICOES.map(r => <option key={r} value={r}>{r}</option>)}
             </select>
           </label>
           <div className="form-grid__actions">

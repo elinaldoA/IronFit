@@ -1,7 +1,7 @@
 import { db } from '../lib/supabase';
 import { treinoData } from './treinoData';
 
-// 5 templates base — um por objetivo (`meta`). O de 'massa' reaproveita o
+// 6 templates base — um por objetivo (`meta`). O de 'massa' reaproveita o
 // plano estático padrão (treinoData) como está. Os focos usados aqui só
 // usam tokens já presentes em MUSCLE_MAP (treinoData.js), senão o heatmap
 // muscular no dashboard silenciosamente ignora o dia.
@@ -166,13 +166,49 @@ const SAUDE = [
     ], pos: []},
 ];
 
+// Objetivo cardio/resistência — sem eixo de restrição alimentar (só dietas
+// têm essa dimensão), então uma única versão cobre o fallback local inteiro.
+const RESISTENCIA = [
+    { dia: 'Segunda', foco: 'Corrida Intervalada', exercicios: [
+        { nome: 'Corrida Intervalada (HIIT)', series: '-', reps: '8x400m forte / 200m trote', descanso: '90s', tecnica: 'Ritmo forte controlado' },
+    ], pos: [
+        { nome: '🔷 Prancha Frontal Estática', series: '3', reps: '40s', descanso: '30s', tecnica: 'Isometria core' },
+    ]},
+    { dia: 'Terça', foco: 'Força / Estabilidade', exercicios: [
+        { nome: 'Agachamento Livre', series: '3', reps: '12-15', descanso: '60s', tecnica: 'Suporte para a corrida' },
+        { nome: 'Afundo Búlgaro', series: '3', reps: '12 cada', descanso: '60s', tecnica: 'Pé elevado atrás' },
+        { nome: 'Panturrilha em Pé', series: '3', reps: '15-20', descanso: '45s', tecnica: 'Amplitude completa' },
+    ], pos: []},
+    { dia: 'Quarta', foco: 'Corrida Longa', exercicios: [
+        { nome: 'Corrida Contínua (Longão)', series: '-', reps: '50-60min', descanso: '-', tecnica: 'Ritmo confortável, dá pra conversar' },
+    ], pos: []},
+    { dia: 'Quinta', foco: 'Cross-training', exercicios: [
+        { nome: 'Bicicleta ou Natação', series: '-', reps: '40min', descanso: '-', tecnica: 'Intensidade moderada' },
+    ], pos: [
+        { nome: '🔷 Elevação de Pernas Deitado', series: '3', reps: '15-20', descanso: '30s', tecnica: 'Toque os pés no chão' },
+    ]},
+    { dia: 'Sexta', foco: 'Corrida Fartlek', exercicios: [
+        { nome: 'Fartlek (variação de ritmo)', series: '-', reps: '35min', descanso: '-', tecnica: 'Alterna forte/moderado por sensação' },
+    ], pos: []},
+    { dia: 'Sábado', foco: 'Cardio Leve / Recuperação', exercicios: [
+        { nome: 'Caminhada Rápida ou Bicicleta Leve', series: '-', reps: '30min', descanso: '-', tecnica: '5-6km/h ou 130bpm' },
+    ], pos: []},
+    { dia: 'Domingo', foco: 'Descanso Total', exercicios: [
+        { nome: 'Sem treino', series: '-', reps: '-', descanso: '-', tecnica: 'Recuperação ativa' },
+    ], pos: []},
+];
+
 const BASE_TEMPLATES = {
     massa: treinoData,
     forca: FORCA,
     emagrecer: EMAGRECER,
     definicao: DEFINICAO,
     saude: SAUDE,
+    resistencia: RESISTENCIA,
 };
+
+export const METAS = ['massa', 'forca', 'emagrecer', 'definicao', 'saude', 'resistencia'];
+export const RESTRICOES = ['padrao', 'vegetariano', 'low_carb'];
 
 export function computeImcBracket(peso, altura) {
     const p = parseFloat(peso);

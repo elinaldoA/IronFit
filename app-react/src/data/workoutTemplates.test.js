@@ -119,7 +119,7 @@ describe('applyLevelAdjustment', () => {
 
 describe('generatePlan', () => {
   it('gera um plano de 7 dias para cada objetivo', async () => {
-    for (const meta of ['massa', 'forca', 'emagrecer', 'definicao', 'saude']) {
+    for (const meta of ['massa', 'forca', 'emagrecer', 'definicao', 'saude', 'resistencia']) {
       const plan = await generatePlan({ peso: 80, altura: 178, meta, nivel: 'intermediario' });
       expect(plan).toHaveLength(7);
     }
